@@ -1,0 +1,23 @@
+stages:
+  - build
+  - test
+
+backend-build:
+  stage: build
+  image: node:20
+  script:
+    - cd backend
+    - npm install
+    - npm run build || echo "No build yet"
+  only:
+    - branches
+
+backend-test:
+  stage: test
+  image: node:20
+  script:
+    - cd backend
+    - npm install
+    - echo "No tests yet"
+  only:
+    - branches
