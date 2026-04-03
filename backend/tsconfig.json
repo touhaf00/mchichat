@@ -8,10 +8,7 @@
     "strict": true,
     "skipLibCheck": true,
     "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "types": ["node"],
-    "ignoreDeprecations": "6.0"
+    "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "prisma.config.ts"]
+  "include": ["src"]
 }
