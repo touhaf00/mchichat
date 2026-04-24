@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createSalonRequest } from "./Salons.api.ts";
+import { createSalonRequest } from "./salons.api.ts";
 
 type SalonCreateFormProps = {
     onCreated: () => void;

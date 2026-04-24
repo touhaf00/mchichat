@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import type { Salon } from "./Salons.api.ts";
+import type { Salon } from "./salons.api";
 
 type SalonListProps = {
     salons: Salon[];
