@@ -19,4 +19,5 @@ export const env = {
     JWT_ACCESS_SECRET: getEnv("JWT_ACCESS_SECRET"),
     JWT_EXPIRES_IN: getEnv("JWT_EXPIRES_IN"),
     CORS_ORIGIN: getEnv("CORS_ORIGIN"),
+    GIPHY_API_KEY: getEnv("GIPHY_API_KEY"),
 };
