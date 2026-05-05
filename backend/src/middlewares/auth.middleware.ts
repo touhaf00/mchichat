@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from "express";
+import {NextFunction, Request, Response} from "express";
 import jwt from "jsonwebtoken";
-import { env } from "../config/env";
+import {env} from "../config/env";
 
 type AuthUser = {
     userId: string;
@@ -20,12 +20,10 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
 
         const token = authHeader.split(" ")[1];
 
-        const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as AuthUser;
-
-        req.user = decoded;
+        req.user = jwt.verify(token, env.JWT_ACCESS_SECRET) as AuthUser;
 
         next();
-    } catch (_error) {
+    } catch {
         return res.status(401).json({
             message: "Token invalide ou expiré",
         });

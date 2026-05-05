@@ -39,8 +39,3 @@ export async function loginRequest(payload: LoginPayload) {
     const response = await api.post<AuthResponse>("/auth/login", payload);
     return response.data;
 }
-
-export async function meRequest() {
-    const response = await api.get<{ user: AuthUser }>("/auth/me");
-    return response.data;
-}

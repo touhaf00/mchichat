@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import {type FormEvent, useCallback, useEffect, useState} from "react";
 import { Link, useParams } from "react-router-dom";
 import {
     getSalonByIdRequest,
@@ -8,6 +8,7 @@ import {
     getMessages,
     sendMessage,
 } from "../features/messages/messages.api";
+import {getApiErrorMessage} from "../lib/getApiErrorMessage";
 
 type Message = {
     id: string;
@@ -37,7 +38,7 @@ export default function SalonPage() {
     const [error, setError] = useState("");
     const [messageError, setMessageError] = useState("");
 
-    async function loadSalon() {
+    const loadSalon = useCallback(async () => {
         if (!id) return;
 
         try {
@@ -46,16 +47,14 @@ export default function SalonPage() {
 
             const data = await getSalonByIdRequest(id);
             setSalon(data.salon);
-        } catch (err: any) {
-            setError(
-                err?.response?.data?.message || "Erreur lors du chargement du salon"
-            );
+        } catch (err: unknown) {
+            setError(getApiErrorMessage(err,"Erreur lors du chargement du salon"));
         } finally {
             setIsLoadingSalon(false);
         }
-    }
+    }, [id]);
 
-    async function loadMessages() {
+    const loadMessages = useCallback(async () => {
         if (!id) return;
 
         try {
@@ -64,16 +63,14 @@ export default function SalonPage() {
 
             const data = await getMessages(id);
             setMessages(data.messages);
-        } catch (err: any) {
-            setMessageError(
-                err?.response?.data?.message || "Erreur lors du chargement des messages"
-            );
+        } catch (err: unknown) {
+            setMessageError(getApiErrorMessage(err,"Erreur lors du chargement des messages"));
         } finally {
             setIsLoadingMessages(false);
         }
-    }
+    }, [id]);
 
-    async function handleSendMessage(event: React.FormEvent<HTMLFormElement>) {
+    async function handleSendMessage(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         if (!id) return;
@@ -95,19 +92,17 @@ export default function SalonPage() {
 
             setContent("");
             await loadMessages();
-        } catch (err: any) {
-            setMessageError(
-                err?.response?.data?.message || "Erreur lors de l'envoi du message"
-            );
+        } catch (err: unknown) {
+            setMessageError(getApiErrorMessage(err,"Erreur lors de l'envoi du message"));
         } finally {
             setIsSending(false);
         }
     }
 
     useEffect(() => {
-        loadSalon();
-        loadMessages();
-    }, [id]);
+        void loadSalon();
+        void loadMessages();
+    }, [loadSalon,loadMessages]);
 
     if (isLoadingSalon) {
         return <div>Chargement du salon...</div>;

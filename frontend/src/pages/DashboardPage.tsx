@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "../features/auth/AuthContext";
+import { useAuth } from "../features/auth/useAuth";
 import { SalonCreateForm } from "../features/salons/SalonCreateForm";
 import { SalonList } from "../features/salons/SalonList";
 import {
@@ -8,6 +8,7 @@ import {
     updateSalonRequest,
     type Salon,
 } from "../features/salons/salons.api";
+import {getApiErrorMessage} from "../lib/getApiErrorMessage";
 
 export default function DashboardPage() {
     const { user } = useAuth();
@@ -21,15 +22,15 @@ export default function DashboardPage() {
             setError("");
             const data = await getSalonsRequest();
             setSalons(data.salons);
-        } catch (err: any) {
-            setError(err?.response?.data?.message || "Erreur lors du chargement des salons");
+        } catch (err: unknown) {
+            setError(getApiErrorMessage (err,"Erreur lors du chargement des salons"));
         } finally {
             setIsLoading(false);
         }
     }
 
     useEffect(() => {
-        loadSalons();
+       void loadSalons();
     }, []);
 
     async function handleDelete(id: string) {
@@ -39,8 +40,8 @@ export default function DashboardPage() {
         try {
             await deleteSalonRequest(id);
             await loadSalons();
-        } catch (err: any) {
-            alert(err?.response?.data?.message || "Erreur lors de la suppression");
+        } catch (err: unknown) {
+            alert(getApiErrorMessage(err,"Erreur lors de la suppression"));
         }
     }
 
@@ -53,8 +54,8 @@ export default function DashboardPage() {
                 name: nextName,
             });
             await loadSalons();
-        } catch (err: any) {
-            alert(err?.response?.data?.message || "Erreur lors de la modification");
+        } catch (err: unknown) {
+            alert(getApiErrorMessage(err,"Erreur lors de la modification"));
         }
     }
 

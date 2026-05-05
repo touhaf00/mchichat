@@ -1,7 +1,8 @@
-import { useState } from "react";
+import {type ChangeEvent, type FormEvent, useState} from "react";
 import { useNavigate } from "react-router-dom";
 import { registerRequest } from "./auth.api";
-import { useAuth } from "./AuthContext";
+import { useAuth } from "./useAuth";
+import {getApiErrorMessage} from "../../lib/getApiErrorMessage.ts";
 
 export function RegisterForm() {
     const navigate = useNavigate();
@@ -18,14 +19,14 @@ export function RegisterForm() {
     const [error, setError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    function handleChange(event: ChangeEvent<HTMLInputElement>) {
         setForm((prev) => ({
             ...prev,
             [event.target.name]: event.target.value,
         }));
     }
 
-    async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         setError("");
         setIsSubmitting(true);
@@ -34,8 +35,8 @@ export function RegisterForm() {
             const data = await registerRequest(form);
             await login(data.token, data.user);
             navigate("/dashboard");
-        } catch (err: any) {
-            setError(err?.response?.data?.message || "Erreur d'inscription");
+        } catch (err: unknown) {
+            setError(getApiErrorMessage(err,"Erreur d'inscription"));
         } finally {
             setIsSubmitting(false);
         }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createSalonRequest } from "./salons.api.ts";
+import {getApiErrorMessage} from "../../lib/getApiErrorMessage";
 
 type SalonCreateFormProps = {
     onCreated: () => void;
@@ -37,8 +38,8 @@ export function SalonCreateForm({ onCreated }: SalonCreateFormProps) {
                 visibility: "PUBLIC",
             });
             onCreated();
-        } catch (err: any) {
-            setError(err?.response?.data?.message || "Erreur lors de la création");
+        } catch (err: unknown) {
+            setError(getApiErrorMessage(err,"Erreur lors de la création"));
         } finally {
             setIsSubmitting(false);
         }

@@ -1,6 +1,5 @@
 import {
-    createContext,
-    useContext,
+    useCallback,
     useEffect,
     useMemo,
     useState,
@@ -8,29 +7,9 @@ import {
 } from "react";
 import { api } from "../../lib/api";
 import { getToken, removeToken, setToken } from "../../lib/storage";
+import { AuthContext } from "./auth.context.ts";
+import type { User } from "./auth.types";
 
-type User = {
-    id: string;
-    email: string;
-    username: string;
-    firstName: string;
-    lastName: string;
-    role: string;
-    createdAt: string;
-    updatedAt?: string;
-};
-
-type AuthContextType = {
-    user: User | null;
-    token: string | null;
-    isAuthenticated: boolean;
-    isLoading: boolean;
-    login: (token: string, user?: User | null) => Promise<void>;
-    logout: () => void;
-    refreshMe: () => Promise<void>;
-};
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 type AuthProviderProps = {
     children: ReactNode;
@@ -41,7 +20,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    async function refreshMe() {
+    const refreshMe = useCallback(async () => {
         const savedToken = getToken();
 
         if (!savedToken) {
@@ -60,9 +39,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } finally {
             setIsLoading(false);
         }
-    }
+    }, []);
 
-    async function login(newToken: string, providedUser?: User | null) {
+    const login = useCallback(async (newToken: string, providedUser?: User | null) => {
         setToken(newToken);
         setTokenState(newToken);
 
@@ -72,17 +51,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         await refreshMe();
-    }
+    },[refreshMe]);
 
-    function logout() {
+    const logout = useCallback(() => {
         removeToken();
         setTokenState(null);
         setUser(null);
-    }
+    }, []);
 
     useEffect(() => {
-        refreshMe();
-    }, []);
+        void refreshMe();
+    }, [refreshMe]);
 
     const value = useMemo(
         () => ({
@@ -94,18 +73,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
             logout,
             refreshMe,
         }),
-        [user, token, isLoading]
+        [user, token, isLoading, login, logout, refreshMe]
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-    const context = useContext(AuthContext);
-
-    if (!context) {
-        throw new Error("useAuth must be used inside AuthProvider");
-    }
-
-    return context;
 }

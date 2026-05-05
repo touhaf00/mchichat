@@ -7,6 +7,7 @@ import {
     getSalonById,
     updateSalon,
 } from "./salon.service";
+import  {getStringParam} from "../../utils/params";
 
 export async function getSalons(
     _req: Request,
@@ -30,7 +31,8 @@ export async function getSalon(
     next: NextFunction
 ) {
     try {
-        const salon = await getSalonById(req.params.id);
+        const id = getStringParam(req.params.id, "Salon id");
+        const salon = await getSalonById(id);
 
         res.status(200).json({
             salon,
@@ -81,7 +83,8 @@ export async function updateSalonHandler(
         }
 
         const data = updateSalonSchema.parse(req.body);
-        const salon = await updateSalon(req.params.id, data, userId);
+        const id = getStringParam(req.params.id, "Salon id");
+        const salon = await updateSalon(id, data, userId);
 
         res.status(200).json({
             message: "Salon mis à jour avec succès",
@@ -105,8 +108,10 @@ export async function deleteSalonHandler(
                 message: "Non autorisé",
             });
         }
+        const id = getStringParam(req.params.id, "Salon id");
 
-        const result = await deleteSalon(req.params.id, userId);
+        if (!id) {return res.status(400).json({message: "Salon id manquant",});}
+        const result = await deleteSalon(id, userId);
 
         res.status(200).json(result);
     } catch (error) {

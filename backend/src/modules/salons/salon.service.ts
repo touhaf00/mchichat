@@ -18,7 +18,7 @@ export async function getAllSalons() {
     });
 }
 
-export async function getSalonById(salonId: string | string[]) {
+export async function getSalonById(salonId: string) {
     const salon = await prisma.salon.findUnique({
         where: { id: salonId },
         include: {
@@ -92,7 +92,7 @@ export async function createSalon(data: CreateSalonInput, ownerId: string) {
 }
 
 export async function updateSalon(
-    salonId: string | string[],
+    salonId: string,
     data: UpdateSalonInput,
     userId: string
 ) {
@@ -125,7 +125,7 @@ export async function updateSalon(
     return updatedSalon;
 }
 
-export async function deleteSalon(salonId: string | string[], userId: string) {
+export async function deleteSalon(salonId: string, userId: string) {
     const existingSalon = await prisma.salon.findUnique({
         where: { id: salonId },
     });
