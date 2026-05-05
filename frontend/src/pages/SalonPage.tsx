@@ -9,6 +9,7 @@ import {
     sendMessage,
 } from "../features/messages/messages.api";
 import {getApiErrorMessage} from "../lib/getApiErrorMessage";
+import { searchGifsRequest, type GifResult }  from "../features/giphy/giphy.api";
 
 type Message = {
     id: string;
@@ -37,6 +38,11 @@ export default function SalonPage() {
 
     const [error, setError] = useState("");
     const [messageError, setMessageError] = useState("");
+
+    const [isGifPickerOpen, setIsGifPickerOpen] = useState(false);
+    const [gifQuery, setGifQuery] = useState("");
+    const [gifs, setGifs] = useState<GifResult[]>([]);
+    const [isSearchingGifs, setIsSearchingGifs] = useState(false);
 
     const loadSalon = useCallback(async () => {
         if (!id) return;
@@ -96,6 +102,71 @@ export default function SalonPage() {
             setMessageError(getApiErrorMessage(err,"Erreur lors de l'envoi du message"));
         } finally {
             setIsSending(false);
+        }
+    }
+
+    async function handleSearchGifs() {
+        const query = gifQuery.trim();
+
+        if (!query) {
+            await loadDefaultGifs();
+            return;
+        }
+        try {
+            setIsSearchingGifs(true);
+            setMessageError("");
+
+            const data = await searchGifsRequest(query);
+            setGifs(data.gifs);
+        } catch (err: unknown) {
+            setMessageError(getApiErrorMessage(err, "Erreur lors de la recherche GIF"));
+        } finally {
+            setIsSearchingGifs(false);
+        }
+    }
+
+    async function handleSendGif(gif: GifResult) {
+        if (!id || !gif.imageUrl) return;
+
+        try{
+            setIsSending(true);
+            setMessageError("");
+
+        await sendMessage({
+            salonId: id,
+            content: gif.imageUrl,
+        });
+        setIsGifPickerOpen(false)
+        setGifQuery("");
+        await loadMessages();
+        } catch (err: unknown) {
+            setMessageError(getApiErrorMessage(err, "Erreur lors de l'envoi du Gif"));
+        } finally {
+            setIsSending(false);
+        }
+    }
+
+    async function loadDefaultGifs() {
+        try {
+            setIsSearchingGifs(true);
+            setMessageError("");
+
+            const data = await searchGifsRequest("hello");
+            setGifs(data.gifs);
+        }catch (err: unknown) {
+            setMessageError(getApiErrorMessage(err,"Erreur lors du chargement des GIFs"));
+        } finally {
+            setIsSearchingGifs(false);
+        }
+    }
+
+    async function handleToggleGifPicker() {
+        const nextValue = !isGifPickerOpen;
+
+        setIsGifPickerOpen(nextValue);
+
+        if (nextValue && gifs.length === 0) {
+            await loadDefaultGifs();
         }
     }
 
@@ -186,7 +257,16 @@ export default function SalonPage() {
                                         </p>
                                     </div>
 
-                                    <p className="mt-2 text-white/85">{message.content}</p>
+                                    {message.content.startsWith("https://media") ||
+                                    message.content.includes("giphy.com") ? (
+                                        <img
+                                            src={message.content}
+                                            alt="GIF"
+                                            className="mt-2 max-h-56 rounded-lg"
+                                        />
+                                    ) : (
+                                        <p className="mt-2 text-white/85">{message.content}</p>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -195,8 +275,85 @@ export default function SalonPage() {
                             Aucun message pour le moment. Sois le premier à parler, petit chef.
                         </p>
                     )}
+                    {isGifPickerOpen && (
+                        <div className="mt-6 rounded-2xl border border-white/10 bg-neutral-950 p-4 shadow-xl">
+                            <div className="mb-4 flex items-center justify-between gap-3">
+                                <h3 className="font-semibold text-white">Choisir un GIF</h3>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setIsGifPickerOpen(false)}
+                                    className="rounded-lg bg-white/10 px-3 py-1 text-sm hover:bg-white/20"
+                                >
+                                    Fermer
+                                </button>
+                            </div>
+
+                            <div className="flex gap-3">
+                                <input
+                                    value={gifQuery}
+                                    onChange={(event) => setGifQuery(event.target.value)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") {
+                                            event.preventDefault();
+                                            void handleSearchGifs();
+                                        }
+                                    }}
+                                    placeholder="Rechercher un GIF..."
+                                    className="flex-1 rounded-lg border border-white/10 bg-neutral-800 px-4 py-3 outline-none focus:border-fuchsia-400"
+                                />
+
+                                <button
+                                    type="button"
+                                    onClick={() => void handleSearchGifs()}
+                                    disabled={isSearchingGifs}
+                                    className="rounded-lg bg-fuchsia-500 px-5 py-3 font-semibold hover:bg-fuchsia-600 disabled:opacity-60"
+                                >
+                                    {isSearchingGifs ? "..." : "OK"}
+                                </button>
+                            </div>
+
+                            <div className="mt-4 max-h-80 overflow-y-auto pr-2">
+                                {isSearchingGifs ? (
+                                    <p className="py-6 text-center text-white/60">Chargement des GIFs...</p>
+                                ) : gifs.length > 0 ? (
+                                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                                        {gifs.map((gif) => (
+                                            <button
+                                                key={gif.id}
+                                                type="button"
+                                                onClick={() => void handleSendGif(gif)}
+                                                className="overflow-hidden rounded-lg border border-white/10 bg-white/5 hover:border-fuchsia-400"
+                                            >
+                                                {gif.imageUrl && (
+                                                    <img
+                                                        src={gif.imageUrl}
+                                                        alt={gif.title || "GIF"}
+                                                        className="h-32 w-full object-cover"
+                                                    />
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="py-6 text-center text-white/60">
+                                        Aucun GIF trouvé.
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     <form onSubmit={handleSendMessage} className="mt-6 flex gap-3">
+                        <button
+                            type="button"
+                            onClick={() => void handleToggleGifPicker()}
+                            className="rounded-lg border border-white/10 bg-neutral-800 px-4 py-3 text-xl hover:border-fuchsia-400 hover:bg-neutral-700"
+                            title="Envoyer un GIF"
+                        >
+                            GIF
+                        </button>
+
                         <input
                             value={content}
                             onChange={(event) => setContent(event.target.value)}
