@@ -10,6 +10,8 @@ import DashboardPage from "../pages/DashboardPage";
 import SalonPage from "../pages/SalonPage";
 import NotFoundPage from "../pages/NotFoundPage";
 import FriendsPage from "../pages/FriendsPage.tsx";
+import PrivateMessagesPage from "../pages/PrivateMessagesPage";
+
 
 export const router = createBrowserRouter([
     {
@@ -48,6 +50,10 @@ export const router = createBrowserRouter([
                         path: "friends",
                         element: <FriendsPage />,
                     },
+                    {
+                        path: "messages",
+                        element: <PrivateMessagesPage />,
+                    }
                 ],
             },
         ],
