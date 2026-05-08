@@ -42,6 +42,9 @@ model User {
   sentFriendRequests     Friendship[] @relation("SentFriendRequests")
   receivedFriendRequests Friendship[] @relation("ReceivedFriendRequests")
 
+  privateConversationParticipants PrivateConversationParticipant[]
+  privateMessages                 PrivateMessage[]
+
   @@map("users")
 }
 
@@ -105,4 +108,45 @@ model Friendship {
   receiver User @relation("ReceivedFriendRequests", fields: [receiverId], references: [id])
 
   @@unique([senderId, receiverId])
+}
+
+model PrivateConversation {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants PrivateConversationParticipant[]
+  messages     PrivateMessage[]
+
+  @@map("private_conversations")
+}
+
+model PrivateConversationParticipant {
+  id             String @id @default(uuid())
+  conversationId String
+  userId         String
+
+  conversation PrivateConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+  @@map("private_conversation_participants")
+}
+
+model PrivateMessage {
+  id             String   @id @default(uuid())
+  content        String   @db.Text
+  conversationId String
+  authorId       String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  conversation PrivateConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author       User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([authorId])
+  @@map("private_messages")
 }
