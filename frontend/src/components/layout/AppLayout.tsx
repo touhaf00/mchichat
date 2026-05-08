@@ -31,6 +31,9 @@ export function AppLayout() {
                                 <NavLink to="/profile" className="hover:text-fuchsia-300">
                                     Profil
                                 </NavLink>
+                                <NavLink to="/friends" className="hover:text-fuchsia-300">
+                                    Amis
+                                </NavLink>
                                 <span className="text-white/70">
                   {user?.firstName} {user?.lastName}
                 </span>
