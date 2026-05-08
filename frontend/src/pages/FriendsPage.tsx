@@ -122,7 +122,7 @@ export default function FriendsPage() {
                     <input
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
-                        placeholder="Ex: aya"
+                        placeholder="username"
                         className="flex-1 rounded-lg border border-white/10 bg-neutral-800 px-4 py-3 outline-none focus:border-fuchsia-400"
                     />
 
