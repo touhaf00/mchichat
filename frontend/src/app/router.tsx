@@ -9,6 +9,7 @@ import ProfilePage from "../pages/ProfilePage";
 import DashboardPage from "../pages/DashboardPage";
 import SalonPage from "../pages/SalonPage";
 import NotFoundPage from "../pages/NotFoundPage";
+import FriendsPage from "../pages/FriendsPage.tsx";
 
 export const router = createBrowserRouter([
     {
@@ -42,6 +43,10 @@ export const router = createBrowserRouter([
                     {
                         path: "salons/:id",
                         element: <SalonPage />,
+                    },
+                    {
+                        path: "friends",
+                        element: <FriendsPage />,
                     },
                 ],
             },
