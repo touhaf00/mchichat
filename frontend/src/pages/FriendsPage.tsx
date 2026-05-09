@@ -9,6 +9,12 @@ import {
     type FriendRequest,
     type FriendUser,
 } from "../features/friends/friends.api";
+import {
+    acceptSalonInvitationRequest,
+    getSalonInvitationsRequest,
+    rejectSalonInvitationRequest,
+    type SalonInvitation,
+} from "../features/salon-invitations/salonInvitations.api";
 import { getApiErrorMessage } from "../lib/getApiErrorMessage";
 
 export default function FriendsPage() {
@@ -17,6 +23,7 @@ export default function FriendsPage() {
     const [friends, setFriends] = useState<FriendUser[]>([]);
     const [receivedRequests, setReceivedRequests] = useState<FriendRequest[]>([]);
     const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
+    const [salonInvitations, setSalonInvitations] = useState<SalonInvitation[]>([]);
 
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
@@ -24,15 +31,18 @@ export default function FriendsPage() {
 
     async function loadFriendData() {
         try {
-            const [friendsData, receivedData, sentData] = await Promise.all([
-                getFriendsRequest(),
-                getReceivedFriendRequestsRequest(),
-                getSentFriendRequestsRequest(),
-            ]);
+            const [friendsData, receivedData, sentData, salonInvitationsData] =
+                await Promise.all([
+                    getFriendsRequest(),
+                    getReceivedFriendRequestsRequest(),
+                    getSentFriendRequestsRequest(),
+                    getSalonInvitationsRequest(),
+                ]);
 
             setFriends(friendsData.friends);
             setReceivedRequests(receivedData.requests);
             setSentRequests(sentData.requests);
+            setSalonInvitations(salonInvitationsData.invitations);
         } catch (error: unknown) {
             setError(getApiErrorMessage(error, "Erreur lors du chargement des amis"));
         }
@@ -89,6 +99,32 @@ export default function FriendsPage() {
         }
     }
 
+    async function handleAcceptSalonInvitation(invitationId: string) {
+        try {
+            setError("");
+            setMessage("");
+
+            await acceptSalonInvitationRequest(invitationId);
+            setMessage("Invitation acceptée. Tu as rejoint le salon.");
+            await loadFriendData();
+        } catch (error: unknown) {
+            setError(getApiErrorMessage(error, "Erreur lors de l'acceptation de l'invitation"));
+        }
+    }
+
+    async function handleRejectSalonInvitation(invitationId: string) {
+        try {
+            setError("");
+            setMessage("");
+
+            await rejectSalonInvitationRequest(invitationId);
+            setMessage("Invitation refusée.");
+            await loadFriendData();
+        } catch (error: unknown) {
+            setError(getApiErrorMessage(error, "Erreur lors du refus de l'invitation"));
+        }
+    }
+
     return (
         <section className="space-y-8">
             <div>
@@ -135,6 +171,56 @@ export default function FriendsPage() {
                     </button>
                 </div>
             </form>
+
+            <div className="rounded-2xl border border-white/10 bg-neutral-900 p-6">
+                <h2 className="mb-4 text-xl font-semibold">Invitations salons privés</h2>
+
+                {salonInvitations.length > 0 ? (
+                    <div className="space-y-3">
+                        {salonInvitations.map((invitation) => (
+                            <div
+                                key={invitation.id}
+                                className="rounded-xl bg-white/5 p-4"
+                            >
+                                <div className="flex items-center justify-between gap-4">
+                                    <div>
+                                        <p className="font-semibold">
+                                            {invitation.salon.name}
+                                        </p>
+                                        <p className="text-sm text-white/60">
+                                            Invité par @{invitation.sender.username}
+                                        </p>
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                void handleAcceptSalonInvitation(invitation.id)
+                                            }
+                                            className="rounded-lg bg-green-500 px-3 py-2 text-sm hover:bg-green-600"
+                                        >
+                                            Accepter
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                void handleRejectSalonInvitation(invitation.id)
+                                            }
+                                            className="rounded-lg bg-red-500 px-3 py-2 text-sm hover:bg-red-600"
+                                        >
+                                            Refuser
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-white/60">Aucune invitation salon.</p>
+                )}
+            </div>
 
             <div className="rounded-2xl border border-white/10 bg-neutral-900 p-6">
                 <h2 className="mb-4 text-xl font-semibold">Résultats</h2>
