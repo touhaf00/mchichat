@@ -3,19 +3,21 @@ import { createSalonSchema, updateSalonSchema } from "./salon.schema";
 import {
     createSalon,
     deleteSalon,
-    getAllSalons,
     getSalonById,
+    getSalons as getSalonsService,
     updateSalon,
 } from "./salon.service";
 import  {getStringParam} from "../../utils/params";
 
 export async function getSalons(
-    _req: Request,
+    req: Request,
     res: Response,
     next: NextFunction
 ) {
     try {
-        const salons = await getAllSalons();
+        const userId = req.user!.userId;
+
+        const salons = await getSalonsService(userId);
 
         res.status(200).json({
             salons,
@@ -31,9 +33,10 @@ export async function getSalon(
     next: NextFunction
 ) {
     try {
-        const id = getStringParam(req.params.id, "Salon id");
-        const salon = await getSalonById(id);
+        const userId = req.user!.userId;
+        const salonId = getStringParam(req.params.id, "salonId");
 
+        const salon = await getSalonById(salonId, userId);
         res.status(200).json({
             salon,
         });

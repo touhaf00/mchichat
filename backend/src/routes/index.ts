@@ -5,6 +5,7 @@ import { messageRouter } from "../modules/messages/message.routes";
 import { giphyRouter } from "../modules/giphy/giphy.routes";
 import { friendRouter } from "../modules/friends/friend.routes";
 import { privateMessageRouter } from "../modules/private-messages/privateMessage.routes";
+import { salonInvitationRouter } from "../modules/salon-invitations/salonInvitation.routes";
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use("/messages", messageRouter);
 router.use("/giphy", giphyRouter);
 router.use("/friends", friendRouter);
 router.use("/", privateMessageRouter);
+router.use("/", salonInvitationRouter);
 
 export { router };

@@ -45,6 +45,9 @@ model User {
   privateConversationParticipants PrivateConversationParticipant[]
   privateMessages                 PrivateMessage[]
 
+  sentSalonInvitations     SalonInvitation[] @relation("SentSalonInvitations")
+  receivedSalonInvitations SalonInvitation[] @relation("ReceivedSalonInvitations")
+
   @@map("users")
 }
 
@@ -57,9 +60,10 @@ model Salon {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  owner    User          @relation("SalonOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members  SalonMember[]
-  messages Message[]
+  owner       User              @relation("SalonOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     SalonMember[]
+  messages    Message[]
+  invitations SalonInvitation[]
 
   @@index([ownerId])
   @@map("salons")
@@ -150,4 +154,30 @@ model PrivateMessage {
   @@index([conversationId])
   @@index([authorId])
   @@map("private_messages")
+}
+
+enum SalonInvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model SalonInvitation {
+  id         String                @id @default(uuid())
+  salonId    String
+  senderId   String
+  receiverId String
+  status     SalonInvitationStatus @default(PENDING)
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  salon    Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  sender   User  @relation("SentSalonInvitations", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User  @relation("ReceivedSalonInvitations", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([salonId, receiverId])
+  @@index([salonId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@map("salon_invitations")
 }

@@ -1,8 +1,21 @@
 import { prisma } from "../../lib/prisma";
 import { CreateSalonInput, UpdateSalonInput } from "./salon.schema";
 
-export async function getAllSalons() {
+export async function getSalons(userId: string) {
     return prisma.salon.findMany({
+        where: {
+            OR: [
+                { visibility: "PUBLIC" },
+                { ownerId: userId },
+                {
+                    members: {
+                        some: {
+                            userId,
+                        },
+                    },
+                },
+            ],
+        },
         orderBy: {
             createdAt: "desc",
         },
@@ -14,11 +27,22 @@ export async function getAllSalons() {
                     email: true,
                 },
             },
+            members: {
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            username: true,
+                            email: true,
+                        },
+                    },
+                },
+            },
         },
     });
 }
 
-export async function getSalonById(salonId: string) {
+export async function getSalonById(salonId: string, userId: string) {
     const salon = await prisma.salon.findUnique({
         where: { id: salonId },
         include: {
@@ -40,25 +64,18 @@ export async function getSalonById(salonId: string) {
                     },
                 },
             },
-            messages: {
-                include: {
-                    author: {
-                        select: {
-                            id: true,
-                            username: true,
-                            email: true,
-                        },
-                    },
-                },
-                orderBy: {
-                    createdAt: "asc",
-                },
-            },
         },
     });
 
     if (!salon) {
         throw new Error("Salon introuvable");
+    }
+
+    const isOwner = salon.ownerId === userId;
+    const isMember = salon.members.some((member) => member.userId === userId);
+
+    if (salon.visibility === "PRIVATE" && !isOwner && !isMember) {
+        throw new Error("Accès interdit à ce salon privé");
     }
 
     return salon;

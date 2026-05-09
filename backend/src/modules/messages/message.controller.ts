@@ -9,23 +9,37 @@ import {getStringParam} from "../../utils/params";
 
 export async function getMessages(req: Request, res: Response, next: NextFunction) {
     try {
-        const salonId  = getStringParam(req.params.salonId, "Salon id");
-        const messages = await getMessagesBySalon(salonId);
+        const userId = req.user!.userId;
+        const salonId = getStringParam(req.params.salonId, "salonId");
 
+        const messages = await getMessagesBySalon(salonId, userId);
         res.json({ messages });
     } catch (err) {
         next(err);
     }
 }
 
-export async function createMessageHandler(req: Request, res: Response, next: NextFunction) {
+export async function createMessageHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
     try {
-        const userId = req.user?.userId;
-        if (!userId) return res.status(401).json({ message: "Non autorisé" });
+        const userId = req.user!.userId;
 
-        const data = createMessageSchema.parse(req.body);
+        const result = createMessageSchema.safeParse(req.body);
 
-        const message = await createMessage(data, userId);
+        if (!result.success) {
+            return res.status(400).json({
+                message: "Données invalides",
+            });
+        }
+
+        const message = await createMessage({
+            salonId: result.data.salonId,
+            authorId: userId,
+            content: result.data.content,
+        });
 
         res.status(201).json({ message });
     } catch (err) {

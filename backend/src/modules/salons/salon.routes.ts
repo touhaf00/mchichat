@@ -10,8 +10,8 @@ import {
 
 const salonRouter = Router();
 
-salonRouter.get("/", getSalons);
-salonRouter.get("/:id", getSalon);
+salonRouter.get("/", authenticate, getSalons);
+salonRouter.get("/:id", authenticate, getSalon);
 salonRouter.post("/", authenticate, createSalonHandler);
 salonRouter.put("/:id", authenticate, updateSalonHandler);
 salonRouter.delete("/:id", authenticate, deleteSalonHandler);

@@ -8,7 +8,7 @@ import {
 
 const messageRouter = Router();
 
-messageRouter.get("/salon/:salonId", getMessages);
+messageRouter.get("/salon/:salonId", authenticate, getMessages);
 messageRouter.post("/", authenticate, createMessageHandler);
 messageRouter.delete("/:id", authenticate, deleteMessageHandler);
 
