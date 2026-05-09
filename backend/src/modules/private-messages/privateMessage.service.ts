@@ -229,7 +229,8 @@ export async function createPrivateMessage(
 
     const message = await prisma.privateMessage.create({
         data: {
-            content: data.content,
+            content: data.content || null,
+            gifUrl: data.gifUrl || null,
             conversationId,
             authorId: userId,
         },
