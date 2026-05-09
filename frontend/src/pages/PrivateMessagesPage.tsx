@@ -1,5 +1,15 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { getFriendsRequest, type FriendUser } from "../features/friends/friends.api";
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FormEvent,
+} from "react";
+import {
+    getFriendsRequest,
+    type FriendUser,
+} from "../features/friends/friends.api";
+import { searchGifsRequest, type GifResult } from "../features/giphy/giphy.api";
 import {
     createPrivateConversationRequest,
     deletePrivateMessageRequest,
@@ -29,11 +39,17 @@ export default function PrivateMessagesPage() {
 
     const [friends, setFriends] = useState<FriendUser[]>([]);
     const [conversations, setConversations] = useState<PrivateConversation[]>([]);
-    const [selectedConversationId, setSelectedConversationId] = useState<string | null>(
-        null
-    );
+    const [selectedConversationId, setSelectedConversationId] = useState<
+        string | null
+    >(null);
+
     const [messages, setMessages] = useState<PrivateMessage[]>([]);
     const [content, setContent] = useState("");
+
+    const [showGifPicker, setShowGifPicker] = useState(false);
+    const [gifSearch, setGifSearch] = useState("");
+    const [gifs, setGifs] = useState<GifResult[]>([]);
+    const [isLoadingGifs, setIsLoadingGifs] = useState(false);
 
     const [isLoadingConversations, setIsLoadingConversations] = useState(true);
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -66,7 +82,10 @@ export default function PrivateMessagesPage() {
             setConversations(conversationsData.conversations);
             setFriends(friendsData.friends);
 
-            if (!selectedConversationId && conversationsData.conversations.length > 0) {
+            if (
+                !selectedConversationId &&
+                conversationsData.conversations.length > 0
+            ) {
                 setSelectedConversationId(conversationsData.conversations[0].id);
             }
         } catch (error: unknown) {
@@ -99,6 +118,25 @@ export default function PrivateMessagesPage() {
         }
     }, [selectedConversationId]);
 
+    const handleSearchGifs = useCallback(
+        async (search = "funny") => {
+            try {
+                setIsLoadingGifs(true);
+                setMessageError("");
+
+                const data = await searchGifsRequest(search.trim() || "funny");
+                setGifs(data.gifs);
+            } catch (error: unknown) {
+                setMessageError(
+                    getApiErrorMessage(error, "Erreur lors du chargement des GIFs")
+                );
+            } finally {
+                setIsLoadingGifs(false);
+            }
+        },
+        []
+    );
+
     useEffect(() => {
         void loadConversations();
     }, [loadConversations]);
@@ -106,6 +144,12 @@ export default function PrivateMessagesPage() {
     useEffect(() => {
         void loadMessages();
     }, [loadMessages]);
+
+    useEffect(() => {
+        if (showGifPicker && gifs.length === 0) {
+            void handleSearchGifs("funny");
+        }
+    }, [showGifPicker, gifs.length, handleSearchGifs]);
 
     async function handleStartConversation(friendId: string) {
         try {
@@ -138,13 +182,41 @@ export default function PrivateMessagesPage() {
             setIsSending(true);
             setMessageError("");
 
-            await sendPrivateMessageRequest(selectedConversationId, trimmedContent);
+            await sendPrivateMessageRequest(selectedConversationId, {
+                content: trimmedContent,
+            });
+
             setContent("");
             await loadMessages();
             await loadConversations();
         } catch (error: unknown) {
             setMessageError(
                 getApiErrorMessage(error, "Erreur lors de l'envoi du message")
+            );
+        } finally {
+            setIsSending(false);
+        }
+    }
+
+    async function handleSendGif(gif: GifResult) {
+        if (!selectedConversationId || !gif.imageUrl) return;
+
+        try {
+            setIsSending(true);
+            setMessageError("");
+
+            await sendPrivateMessageRequest(selectedConversationId, {
+                gifUrl: gif.imageUrl,
+            });
+
+            setShowGifPicker(false);
+            setGifSearch("");
+
+            await loadMessages();
+            await loadConversations();
+        } catch (error: unknown) {
+            setMessageError(
+                getApiErrorMessage(error, "Erreur lors de l'envoi du GIF")
             );
         } finally {
             setIsSending(false);
@@ -207,7 +279,10 @@ export default function PrivateMessagesPage() {
                                     <button
                                         key={conversation.id}
                                         type="button"
-                                        onClick={() => setSelectedConversationId(conversation.id)}
+                                        onClick={() => {
+                                            setSelectedConversationId(conversation.id);
+                                            setShowGifPicker(false);
+                                        }}
                                         className={`w-full rounded-xl p-3 text-left transition ${
                                             selectedConversationId === conversation.id
                                                 ? "bg-fuchsia-500/20 ring-1 ring-fuchsia-400"
@@ -218,7 +293,9 @@ export default function PrivateMessagesPage() {
                                             {otherUser?.username || "Utilisateur"}
                                         </p>
                                         <p className="truncate text-sm text-white/50">
-                                            {lastMessage?.content || "Aucun message"}
+                                            {lastMessage?.gifUrl
+                                                ? "GIF"
+                                                : lastMessage?.content || "Aucun message"}
                                         </p>
                                     </button>
                                 );
@@ -287,7 +364,9 @@ export default function PrivateMessagesPage() {
                                     return (
                                         <div
                                             key={message.id}
-                                            className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                                            className={`flex ${
+                                                isMine ? "justify-end" : "justify-start"
+                                            }`}
                                         >
                                             <div
                                                 className={`max-w-[75%] rounded-2xl p-4 ${
@@ -302,14 +381,29 @@ export default function PrivateMessagesPage() {
                           </span>
 
                                                     <span className="text-xs opacity-60">
-                            {new Date(message.createdAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                            })}
+                            {new Date(message.createdAt).toLocaleTimeString(
+                                [],
+                                {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                }
+                            )}
                           </span>
                                                 </div>
 
-                                                <p className="whitespace-pre-wrap">{message.content}</p>
+                                                {message.content && (
+                                                    <p className="whitespace-pre-wrap">
+                                                        {message.content}
+                                                    </p>
+                                                )}
+
+                                                {message.gifUrl && (
+                                                    <img
+                                                        src={message.gifUrl}
+                                                        alt="GIF"
+                                                        className="mt-2 max-h-72 rounded-xl"
+                                                    />
+                                                )}
 
                                                 {isMine && (
                                                     <button
@@ -331,21 +425,100 @@ export default function PrivateMessagesPage() {
                             )}
                         </div>
 
-                        <form onSubmit={handleSendMessage} className="mt-6 flex gap-3">
-                            <input
-                                value={content}
-                                onChange={(event) => setContent(event.target.value)}
-                                placeholder="Écris un message privé..."
-                                className="flex-1 rounded-lg border border-white/10 bg-neutral-800 px-4 py-3 outline-none focus:border-fuchsia-400"
-                            />
+                        <form onSubmit={handleSendMessage} className="mt-6 flex flex-col gap-3">
+                            {showGifPicker && (
+                                <div className="rounded-2xl border border-white/10 bg-neutral-950 p-4">
+                                    <div className="mb-4 flex items-center justify-between gap-3">
+                                        <h3 className="font-semibold">Choisir un GIF</h3>
 
-                            <button
-                                type="submit"
-                                disabled={isSending || !content.trim()}
-                                className="rounded-lg bg-fuchsia-500 px-5 py-3 font-semibold hover:bg-fuchsia-600 disabled:opacity-60"
-                            >
-                                {isSending ? "Envoi..." : "Envoyer"}
-                            </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowGifPicker(false)}
+                                            className="rounded-lg bg-white/10 px-3 py-1 text-sm hover:bg-white/20"
+                                        >
+                                            Fermer
+                                        </button>
+                                    </div>
+
+                                    <div className="mb-4 flex gap-3">
+                                        <input
+                                            value={gifSearch}
+                                            onChange={(event) => setGifSearch(event.target.value)}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter") {
+                                                    event.preventDefault();
+                                                    void handleSearchGifs(gifSearch);
+                                                }
+                                            }}
+                                            placeholder="Rechercher un GIF..."
+                                            className="flex-1 rounded-lg border border-white/10 bg-neutral-800 px-4 py-2 outline-none focus:border-fuchsia-400"
+                                        />
+
+                                        <button
+                                            type="button"
+                                            onClick={() => void handleSearchGifs(gifSearch)}
+                                            disabled={isLoadingGifs}
+                                            className="rounded-lg bg-fuchsia-500 px-4 py-2 font-medium hover:bg-fuchsia-600 disabled:opacity-60"
+                                        >
+                                            {isLoadingGifs ? "..." : "OK"}
+                                        </button>
+                                    </div>
+
+                                    {isLoadingGifs ? (
+                                        <p className="py-6 text-center text-white/60">
+                                            Chargement des GIFs...
+                                        </p>
+                                    ) : gifs.length > 0 ? (
+                                        <div className="grid max-h-96 grid-cols-2 gap-3 overflow-y-auto pr-2 md:grid-cols-3">
+                                            {gifs.map((gif) => (
+                                                <button
+                                                    key={gif.id}
+                                                    type="button"
+                                                    onClick={() => void handleSendGif(gif)}
+                                                    className="overflow-hidden rounded-xl border border-white/10 bg-white/5 hover:border-fuchsia-400"
+                                                >
+                                                    {gif.imageUrl && (
+                                                        <img
+                                                            src={gif.imageUrl}
+                                                            alt={gif.title || "GIF"}
+                                                            className="h-40 w-full object-cover transition hover:scale-105"
+                                                        />
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="py-6 text-center text-white/60">
+                                            Aucun GIF trouvé.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowGifPicker((prev) => !prev)}
+                                    className="rounded-lg border border-white/10 bg-neutral-800 px-4 py-3 font-semibold hover:bg-neutral-700"
+                                >
+                                    GIF
+                                </button>
+
+                                <input
+                                    value={content}
+                                    onChange={(event) => setContent(event.target.value)}
+                                    placeholder="Écris un message privé..."
+                                    className="flex-1 rounded-lg border border-white/10 bg-neutral-800 px-4 py-3 outline-none focus:border-fuchsia-400"
+                                />
+
+                                <button
+                                    type="submit"
+                                    disabled={isSending || !content.trim()}
+                                    className="rounded-lg bg-fuchsia-500 px-5 py-3 font-semibold hover:bg-fuchsia-600 disabled:opacity-60"
+                                >
+                                    {isSending ? "Envoi..." : "Envoyer"}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 ) : (

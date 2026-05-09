@@ -11,6 +11,7 @@ export type PrivateUser = {
 export type PrivateMessage = {
     id: string;
     content: string;
+    gifUrl?: string | null;
     conversationId: string;
     authorId: string;
     createdAt: string;
@@ -62,13 +63,14 @@ export async function getPrivateMessagesRequest(conversationId: string) {
 
 export async function sendPrivateMessageRequest(
     conversationId: string,
-    content: string
-) {
+    payload: {
+        content?: string;
+        gifUrl?: string;
+    }
+){
     const response = await api.post<{ message: PrivateMessage }>(
         `/private-conversations/${conversationId}/messages`,
-        {
-            content,
-        }
+            payload,
     );
 
     return response.data;
