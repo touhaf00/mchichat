@@ -1,4 +1,4 @@
-import {type FormEvent, useCallback, useEffect, useState} from "react";
+import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
     getSalonByIdRequest,
@@ -8,8 +8,14 @@ import {
     getMessages,
     sendMessage,
 } from "../features/messages/messages.api";
-import {getApiErrorMessage} from "../lib/getApiErrorMessage";
-import { searchGifsRequest, type GifResult }  from "../features/giphy/giphy.api";
+import {
+    getFriendsRequest,
+    type FriendUser,
+} from "../features/friends/friends.api";
+import { inviteToSalonRequest } from "../features/salon-invitations/salonInvitations.api";
+import { getApiErrorMessage } from "../lib/getApiErrorMessage";
+import { searchGifsRequest, type GifResult } from "../features/giphy/giphy.api";
+import { useAuth } from "../features/auth/useAuth";
 
 type Message = {
     id: string;
@@ -28,9 +34,18 @@ type Message = {
 export default function SalonPage() {
     const { id } = useParams();
 
+    const { user } = useAuth();
+
     const [salon, setSalon] = useState<SalonDetails | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [content, setContent] = useState("");
+
+    const [friends, setFriends] = useState<FriendUser[]>([]);
+    const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+    const [isLoadingFriends, setIsLoadingFriends] = useState(false);
+    const [isInviting, setIsInviting] = useState(false);
+    const [inviteMessage, setInviteMessage] = useState("");
+    const [inviteError, setInviteError] = useState("");
 
     const [isLoadingSalon, setIsLoadingSalon] = useState(true);
     const [isLoadingMessages, setIsLoadingMessages] = useState(true);
@@ -54,7 +69,7 @@ export default function SalonPage() {
             const data = await getSalonByIdRequest(id);
             setSalon(data.salon);
         } catch (err: unknown) {
-            setError(getApiErrorMessage(err,"Erreur lors du chargement du salon"));
+            setError(getApiErrorMessage(err, "Erreur lors du chargement du salon"));
         } finally {
             setIsLoadingSalon(false);
         }
@@ -70,11 +85,44 @@ export default function SalonPage() {
             const data = await getMessages(id);
             setMessages(data.messages);
         } catch (err: unknown) {
-            setMessageError(getApiErrorMessage(err,"Erreur lors du chargement des messages"));
+            setMessageError(getApiErrorMessage(err, "Erreur lors du chargement des messages"));
         } finally {
             setIsLoadingMessages(false);
         }
     }, [id]);
+
+    async function openInviteModal() {
+        try {
+            setIsLoadingFriends(true);
+            setInviteError("");
+            setInviteMessage("");
+
+            const data = await getFriendsRequest();
+            setFriends(data.friends);
+            setIsInviteModalOpen(true);
+        } catch (err: unknown) {
+            setInviteError(getApiErrorMessage(err, "Erreur lors du chargement des amis"));
+        } finally {
+            setIsLoadingFriends(false);
+        }
+    }
+
+    async function handleInviteFriend(receiverId: string) {
+        if (!id) return;
+
+        try {
+            setIsInviting(true);
+            setInviteError("");
+            setInviteMessage("");
+
+            await inviteToSalonRequest(id, receiverId);
+            setInviteMessage("Invitation envoyée.");
+        } catch (err: unknown) {
+            setInviteError(getApiErrorMessage(err, "Erreur lors de l'envoi de l'invitation"));
+        } finally {
+            setIsInviting(false);
+        }
+    }
 
     async function handleSendMessage(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -99,7 +147,7 @@ export default function SalonPage() {
             setContent("");
             await loadMessages();
         } catch (err: unknown) {
-            setMessageError(getApiErrorMessage(err,"Erreur lors de l'envoi du message"));
+            setMessageError(getApiErrorMessage(err, "Erreur lors de l'envoi du message"));
         } finally {
             setIsSending(false);
         }
@@ -112,6 +160,7 @@ export default function SalonPage() {
             await loadDefaultGifs();
             return;
         }
+
         try {
             setIsSearchingGifs(true);
             setMessageError("");
@@ -128,17 +177,18 @@ export default function SalonPage() {
     async function handleSendGif(gif: GifResult) {
         if (!id || !gif.imageUrl) return;
 
-        try{
+        try {
             setIsSending(true);
             setMessageError("");
 
-        await sendMessage({
-            salonId: id,
-            content: gif.imageUrl,
-        });
-        setIsGifPickerOpen(false)
-        setGifQuery("");
-        await loadMessages();
+            await sendMessage({
+                salonId: id,
+                content: gif.imageUrl,
+            });
+
+            setIsGifPickerOpen(false);
+            setGifQuery("");
+            await loadMessages();
         } catch (err: unknown) {
             setMessageError(getApiErrorMessage(err, "Erreur lors de l'envoi du Gif"));
         } finally {
@@ -153,8 +203,8 @@ export default function SalonPage() {
 
             const data = await searchGifsRequest("hello");
             setGifs(data.gifs);
-        }catch (err: unknown) {
-            setMessageError(getApiErrorMessage(err,"Erreur lors du chargement des GIFs"));
+        } catch (err: unknown) {
+            setMessageError(getApiErrorMessage(err, "Erreur lors du chargement des GIFs"));
         } finally {
             setIsSearchingGifs(false);
         }
@@ -173,7 +223,7 @@ export default function SalonPage() {
     useEffect(() => {
         void loadSalon();
         void loadMessages();
-    }, [loadSalon,loadMessages]);
+    }, [loadSalon, loadMessages]);
 
     if (isLoadingSalon) {
         return <div>Chargement du salon...</div>;
@@ -191,24 +241,104 @@ export default function SalonPage() {
         return <div>Salon introuvable.</div>;
     }
 
+    const isOwner = user?.id === salon.ownerId;
+
     return (
         <section className="space-y-8">
             <Link to="/dashboard" className="text-fuchsia-400 hover:underline">
                 ← Retour au dashboard
             </Link>
 
+            {inviteMessage && (
+                <div className="rounded-xl bg-green-500/15 p-4 text-green-300">
+                    {inviteMessage}
+                </div>
+            )}
+
+            {inviteError && (
+                <div className="rounded-xl bg-red-500/15 p-4 text-red-300">
+                    {inviteError}
+                </div>
+            )}
+
             <div className="rounded-2xl border border-white/10 bg-neutral-900 p-6">
-                <h1 className="text-3xl font-bold">{salon.name}</h1>
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold">{salon.name}</h1>
 
-                <p className="mt-3 text-white/70">
-                    {salon.description || "Pas de description"}
-                </p>
+                        <p className="mt-3 text-white/70">
+                            {salon.description || "Pas de description"}
+                        </p>
 
-                <div className="mt-4 text-sm text-white/50">
-                    <p>Visibilité : {salon.visibility}</p>
-                    <p>Propriétaire : {salon.owner?.username || "Inconnu"}</p>
+                        <div className="mt-4 text-sm text-white/50">
+                            <p>Visibilité : {salon.visibility}</p>
+                            <p>Propriétaire : {salon.owner?.username || "Inconnu"}</p>
+                        </div>
+                    </div>
+
+                    {salon.visibility === "PRIVATE" && isOwner && (
+                        <button
+                            type="button"
+                            onClick={() => void openInviteModal()}
+                            disabled={isLoadingFriends}
+                            className="rounded-lg bg-fuchsia-500 px-4 py-2 font-semibold hover:bg-fuchsia-600 disabled:opacity-60"
+                        >
+                            {isLoadingFriends ? "Chargement..." : "Inviter un ami"}
+                        </button>
+                    )}
                 </div>
             </div>
+
+            {isInviteModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+                    <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-neutral-900 p-6 shadow-2xl">
+                        <div className="mb-4 flex items-center justify-between gap-4">
+                            <h2 className="text-xl font-semibold">
+                                Inviter un ami au salon
+                            </h2>
+
+                            <button
+                                type="button"
+                                onClick={() => setIsInviteModalOpen(false)}
+                                className="rounded-lg bg-white/10 px-3 py-2 text-sm hover:bg-white/20"
+                            >
+                                Fermer
+                            </button>
+                        </div>
+
+                        {friends.length > 0 ? (
+                            <div className="max-h-96 space-y-3 overflow-y-auto pr-2">
+                                {friends.map((friend) => (
+                                    <div
+                                        key={friend.id}
+                                        className="flex items-center justify-between gap-4 rounded-xl bg-white/5 p-4"
+                                    >
+                                        <div>
+                                            <p className="font-semibold">@{friend.username}</p>
+                                            <p className="text-sm text-white/60">
+                                                {friend.firstName} {friend.lastName}
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => void handleInviteFriend(friend.id)}
+                                            disabled={isInviting}
+                                            className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium hover:bg-blue-600 disabled:opacity-60"
+                                        >
+                                            Inviter
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-white/60">
+                                Aucun ami disponible à inviter.
+                            </p>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <div className="grid gap-8 lg:grid-cols-[300px_1fr]">
                 <div className="rounded-2xl border border-white/10 bg-neutral-900 p-6">
@@ -275,6 +405,7 @@ export default function SalonPage() {
                             Aucun message pour le moment. Sois le premier à parler, petit chef.
                         </p>
                     )}
+
                     {isGifPickerOpen && (
                         <div className="mt-6 rounded-2xl border border-white/10 bg-neutral-950 p-4 shadow-xl">
                             <div className="mb-4 flex items-center justify-between gap-3">
@@ -315,7 +446,9 @@ export default function SalonPage() {
 
                             <div className="mt-4 max-h-80 overflow-y-auto pr-2">
                                 {isSearchingGifs ? (
-                                    <p className="py-6 text-center text-white/60">Chargement des GIFs...</p>
+                                    <p className="py-6 text-center text-white/60">
+                                        Chargement des GIFs...
+                                    </p>
                                 ) : gifs.length > 0 ? (
                                     <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                                         {gifs.map((gif) => (
