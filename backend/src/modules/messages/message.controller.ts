@@ -6,6 +6,7 @@ import {
     getMessagesBySalon,
 } from "./message.service";
 import {getStringParam} from "../../utils/params";
+import { getIO } from "../../lib/socket";
 
 export async function getMessages(req: Request, res: Response, next: NextFunction) {
     try {
@@ -40,6 +41,8 @@ export async function createMessageHandler(
             authorId: userId,
             content: result.data.content,
         });
+
+        getIO().to(`salon:${result.data.salonId}`).emit("salon_message_created", message);
 
         res.status(201).json({ message });
     } catch (err) {

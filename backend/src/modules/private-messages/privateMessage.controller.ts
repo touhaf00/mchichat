@@ -11,6 +11,7 @@ import {
     getPrivateConversations,
     getPrivateMessages,
 } from "./privateMessage.service";
+import { getIO } from "../../lib/socket";
 
 export async function getPrivateConversationsHandler(
     req: Request,
@@ -106,6 +107,9 @@ export async function createPrivateMessageHandler(
 
         const message = await createPrivateMessage(id, userId, data);
 
+        getIO()
+            .to(`private:${id}`)
+            .emit("private_message_created", message);
         res.status(201).json({
             message,
         });

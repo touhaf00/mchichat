@@ -22,6 +22,7 @@ import {
 } from "../features/private-messages/privateMessages.api";
 import { useAuth } from "../features/auth/useAuth";
 import { getApiErrorMessage } from "../lib/getApiErrorMessage";
+import { socket } from "../lib/socket";
 
 function getOtherParticipant(
     conversation: PrivateConversation,
@@ -151,6 +152,32 @@ export default function PrivateMessagesPage() {
         }
     }, [showGifPicker, gifs.length, handleSearchGifs]);
 
+    useEffect(() => {
+        if (!selectedConversationId) return;
+
+        socket.connect();
+        socket.emit("join_private_conversation", selectedConversationId);
+
+        socket.on("private_message_created", (newMessage: PrivateMessage) => {
+            setMessages((currentMessages) => {
+                const alreadyExists = currentMessages.some(
+                    (message) => message.id === newMessage.id
+                );
+
+                if (alreadyExists) {
+                    return currentMessages;
+                }
+
+                return [...currentMessages, newMessage];
+            });
+        });
+
+        return () => {
+            socket.emit("leave_private_conversation", selectedConversationId);
+            socket.off("private_message_created");
+        };
+    }, [selectedConversationId]);
+
     async function handleStartConversation(friendId: string) {
         try {
             setIsStartingConversation(true);
@@ -187,7 +214,7 @@ export default function PrivateMessagesPage() {
             });
 
             setContent("");
-            await loadMessages();
+
             await loadConversations();
         } catch (error: unknown) {
             setMessageError(
@@ -212,7 +239,6 @@ export default function PrivateMessagesPage() {
             setShowGifPicker(false);
             setGifSearch("");
 
-            await loadMessages();
             await loadConversations();
         } catch (error: unknown) {
             setMessageError(

@@ -16,6 +16,7 @@ import { inviteToSalonRequest } from "../features/salon-invitations/salonInvitat
 import { getApiErrorMessage } from "../lib/getApiErrorMessage";
 import { searchGifsRequest, type GifResult } from "../features/giphy/giphy.api";
 import { useAuth } from "../features/auth/useAuth";
+import { socket } from "../lib/socket";
 
 type Message = {
     id: string;
@@ -145,7 +146,6 @@ export default function SalonPage() {
             });
 
             setContent("");
-            await loadMessages();
         } catch (err: unknown) {
             setMessageError(getApiErrorMessage(err, "Erreur lors de l'envoi du message"));
         } finally {
@@ -188,7 +188,6 @@ export default function SalonPage() {
 
             setIsGifPickerOpen(false);
             setGifQuery("");
-            await loadMessages();
         } catch (err: unknown) {
             setMessageError(getApiErrorMessage(err, "Erreur lors de l'envoi du Gif"));
         } finally {
@@ -224,6 +223,32 @@ export default function SalonPage() {
         void loadSalon();
         void loadMessages();
     }, [loadSalon, loadMessages]);
+
+    useEffect(() => {
+        if (!id) return;
+
+        socket.connect();
+        socket.emit("join_salon", id);
+
+        socket.on("salon_message_created", (newMessage: Message) => {
+            setMessages((currentMessages) => {
+                const alreadyExists = currentMessages.some(
+                    (message) => message.id === newMessage.id
+                );
+
+                if (alreadyExists) {
+                    return currentMessages;
+                }
+
+                return [...currentMessages, newMessage];
+            });
+        });
+
+        return () => {
+            socket.emit("leave_salon", id);
+            socket.off("salon_message_created");
+        };
+    }, [id]);
 
     if (isLoadingSalon) {
         return <div>Chargement du salon...</div>;
