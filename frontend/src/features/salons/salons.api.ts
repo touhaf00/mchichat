@@ -15,6 +15,7 @@ export type Salon = {
     createdAt: string;
     updatedAt: string;
     owner?: SalonOwner;
+    members?: SalonMember[];
 };
 
 export type MessageAuthor = {
@@ -62,6 +63,23 @@ export type UpdateSalonPayload = {
     visibility?: "PUBLIC" | "PRIVATE";
 };
 
+export type SalonMembershipRequest = {
+    id: string;
+    salonId: string;
+    requesterId: string;
+    status: "PENDING" | "ACCEPTED" | "REJECTED";
+    createdAt: string;
+    updatedAt: string;
+    salon: Salon;
+    requester: {
+        id: string;
+        username: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+    };
+};
+
 export async function getSalonsRequest() {
     const response = await api.get<{ salons: Salon[] }>("/salons");
     return response.data;
@@ -84,5 +102,40 @@ export async function updateSalonRequest(id: string, payload: UpdateSalonPayload
 
 export async function deleteSalonRequest(id: string) {
     const response = await api.delete<{ message: string }>(`/salons/${id}`);
+    return response.data;
+}
+
+export async function requestSalonMembershipRequest(salonId: string) {
+    const response = await api.post<{
+        message: string;
+        request: SalonMembershipRequest;
+    }>(`/salons/${salonId}/membership-requests`);
+
+    return response.data;
+}
+
+export async function getSalonMembershipRequestsRequest() {
+    const response = await api.get<{
+        requests: SalonMembershipRequest[];
+    }>("/salons/membership-requests");
+
+    return response.data;
+}
+
+export async function acceptSalonMembershipRequestRequest(requestId: string) {
+    const response = await api.post<{
+        message: string;
+        request: SalonMembershipRequest;
+    }>(`/salons/membership-requests/${requestId}/accept`);
+
+    return response.data;
+}
+
+export async function rejectSalonMembershipRequestRequest(requestId: string) {
+    const response = await api.post<{
+        message: string;
+        request: SalonMembershipRequest;
+    }>(`/salons/membership-requests/${requestId}/reject`);
+
     return response.data;
 }

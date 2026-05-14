@@ -157,6 +157,12 @@ export default function PrivateMessagesPage() {
     }, [loadMessages]);
 
     useEffect(() => {
+        if (!selectedConversationId) return;
+
+        resetConversation(selectedConversationId);
+    }, [selectedConversationId, resetConversation]);
+
+    useEffect(() => {
         if (showGifPicker && gifs.length === 0) {
             void handleSearchGifs("funny");
         }
@@ -182,6 +188,8 @@ export default function PrivateMessagesPage() {
             });
 
             const isMine = newMessage.authorId === user?.id;
+
+            resetConversation(selectedConversationId);
 
             if (!isMine && !isScrolledToBottom()) {
                 setUnreadMessagesCount((count) => count + 1);
@@ -230,6 +238,8 @@ export default function PrivateMessagesPage() {
             });
 
             setContent("");
+            resetConversation(selectedConversationId);
+            setUnreadMessagesCount(0);
             await loadConversations();
         } catch (error: unknown) {
             setMessageError(

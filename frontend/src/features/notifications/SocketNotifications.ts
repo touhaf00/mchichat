@@ -13,6 +13,7 @@ export function SocketNotifications() {
         incrementFriends,
         incrementSalon,
         incrementMessage,
+        incrementSalonMembershipRequests,
     } = useNotifications();
 
     useEffect(() => {
@@ -40,6 +41,11 @@ export function SocketNotifications() {
             }
         });
 
+        socket.on("salon_membership_request_received", () => {
+            incrementSalonMembershipRequests();
+            showToast("Nouvelle demande d'adhésion à un salon");
+        });
+
         socket.on(
             "private_message_notification",
             (data: { conversationId: string }) => {
@@ -48,17 +54,28 @@ export function SocketNotifications() {
                 if (!isInsideMessagesPage) {
                     incrementMessage(data.conversationId);
                     showToast("Nouveau message privé");
-                } else {
-                    incrementMessage(data.conversationId);
                 }
             }
         );
+
+        socket.on("friend_request_accepted", () => {
+            showToast("Ta demande d'ami a été acceptée");
+            window.dispatchEvent(new Event("friends:refresh"));
+        });
+
+        socket.on("salon_membership_request_accepted", () => {
+            showToast("Ta demande d'adhésion au salon a été acceptée");
+            window.dispatchEvent(new Event("salons:refresh"));
+        });
 
         return () => {
             socket.off("friend_request_received");
             socket.off("salon_invitation_received");
             socket.off("salon_message_notification");
+            socket.off("salon_membership_request_received");
             socket.off("private_message_notification");
+            socket.off("friend_request_accepted");
+            socket.off("salon_membership_request_accepted");
         };
     }, [
         user?.id,
@@ -67,6 +84,7 @@ export function SocketNotifications() {
         incrementFriends,
         incrementSalon,
         incrementMessage,
+        incrementSalonMembershipRequests,
     ]);
 
     return null;

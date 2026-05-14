@@ -23,6 +23,7 @@ export function AppLayout() {
         totalSalons,
         totalMessages,
         resetFriends,
+        resetSalonMembershipRequests,
     } = useNotifications();
 
     function handleLogout() {
@@ -48,9 +49,13 @@ export function AppLayout() {
 
                         {isAuthenticated ? (
                             <>
-                                <NavLink to="/dashboard" className="hover:text-fuchsia-300">
+                                <NavLink
+                                    to="/dashboard"
+                                    onClick={resetSalonMembershipRequests}
+                                    className="hover:text-fuchsia-300"
+                                >
                                     Dashboard
-                                    <NotificationBadge count={totalSalons} />
+                                    <NotificationBadge count={totalSalons + counts.salonMembershipRequests} />
                                 </NavLink>
 
                                 <NavLink to="/profile" className="hover:text-fuchsia-300">

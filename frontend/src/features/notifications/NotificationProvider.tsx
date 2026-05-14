@@ -11,6 +11,7 @@ type NotificationCounts = {
     friends: number;
     salonsBySalonId: Record<string, number>;
     messagesByConversationId: Record<string, number>;
+    salonMembershipRequests: number;
 };
 
 type Toast = {
@@ -31,6 +32,9 @@ type NotificationContextValue = {
     resetFriends: () => void;
     resetSalon: (salonId: string) => void;
     resetConversation: (conversationId: string) => void;
+
+    incrementSalonMembershipRequests: () => void;
+    resetSalonMembershipRequests: () => void;
 };
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
@@ -41,6 +45,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         friends: 0,
         salonsBySalonId: {},
         messagesByConversationId: {},
+        salonMembershipRequests: 0,
     });
 
     const totalSalons = useMemo(() => {
@@ -126,6 +131,20 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         });
     }, []);
 
+    const incrementSalonMembershipRequests = useCallback(() => {
+        setCounts((current) => ({
+            ...current,
+            salonMembershipRequests: current.salonMembershipRequests + 1,
+        }));
+    }, []);
+
+    const resetSalonMembershipRequests = useCallback(() => {
+        setCounts((current) => ({
+            ...current,
+            salonMembershipRequests: 0,
+        }));
+    }, []);
+
     return (
         <NotificationContext.Provider
             value={{
@@ -139,6 +158,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                 resetFriends,
                 resetSalon,
                 resetConversation,
+                incrementSalonMembershipRequests,
+                resetSalonMembershipRequests,
             }}
         >
             {children}

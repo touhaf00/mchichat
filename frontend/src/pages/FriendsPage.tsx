@@ -125,6 +125,18 @@ export default function FriendsPage() {
         }
     }
 
+    useEffect(() => {
+        function refreshFriends() {
+            void loadFriendData();
+        }
+
+        window.addEventListener("friends:refresh", refreshFriends);
+
+        return () => {
+            window.removeEventListener("friends:refresh", refreshFriends);
+        };
+    }, []);
+
     return (
         <section className="space-y-8">
             <div>

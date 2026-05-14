@@ -8,6 +8,7 @@ type SalonListProps = {
     onOpenSalon?: (salonId: string) => void;
     onDelete: (id: string) => void;
     onQuickEdit: (salon: Salon) => void;
+    onRequestMembership?: (salonId: string) => void;
 };
 
 export function SalonList({
@@ -17,6 +18,7 @@ export function SalonList({
                               onOpenSalon,
                               onDelete,
                               onQuickEdit,
+                              onRequestMembership,
                           }: SalonListProps) {
     if (salons.length === 0) {
         return (
@@ -32,6 +34,9 @@ export function SalonList({
                 const isOwner = salon.ownerId === currentUserId;
                 const unreadCount = unreadSalonsById[salon.id] || 0;
                 const hasUnread = unreadCount > 0;
+                const isMember = salon.members?.some((member) => member.userId === currentUserId);
+                const canRequestMembership =
+                    salon.visibility === "PUBLIC" && !isOwner && !isMember;
 
                 return (
                     <div
@@ -75,6 +80,15 @@ export function SalonList({
                                 >
                                     Ouvrir
                                 </Link>
+                                {canRequestMembership && (
+                                    <button
+                                        type="button"
+                                        onClick={() => onRequestMembership?.(salon.id)}
+                                        className={"rounded-lg bg-emerald-500 px-4 py-2 text-sm front-medium hover:bg-emerald-600"}
+                                    >
+                                        Devenir membre
+                                    </button>
+                                )}
 
                                 {isOwner && (
                                     <>
