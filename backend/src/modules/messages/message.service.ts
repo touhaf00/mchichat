@@ -1,5 +1,4 @@
 import { prisma } from "../../lib/prisma";
-import { CreateMessageInput } from "./message.schema";
 
 export async function getMessagesBySalon(salonId: string, userId: string) {
     await canAccessSalon(salonId, userId);
@@ -23,7 +22,11 @@ export async function getMessagesBySalon(salonId: string, userId: string) {
     });
 }
 
-export async function createMessage({salonId, authorId, content,}: {
+export async function createMessage({
+                                        salonId,
+                                        authorId,
+                                        content,
+                                    }: {
     salonId: string;
     authorId: string;
     content: string;
@@ -48,12 +51,48 @@ export async function createMessage({salonId, authorId, content,}: {
     });
 }
 
+export async function updateMessage(
+    messageId: string,
+    userId: string,
+    content: string
+) {
+    const message = await prisma.message.findUnique({
+        where: { id: messageId },
+    });
+
+    if (!message) {
+        throw new Error("Message introuvable");
+    }
+
+    if (message.authorId !== userId) {
+        throw new Error("Non autorisé");
+    }
+
+    await canAccessSalon(message.salonId, userId);
+
+    return prisma.message.update({
+        where: { id: messageId },
+        data: { content },
+        include: {
+            author: {
+                select: {
+                    id: true,
+                    username: true,
+                    email: true,
+                },
+            },
+        },
+    });
+}
+
 export async function deleteMessage(messageId: string, userId: string) {
     const message = await prisma.message.findUnique({
         where: { id: messageId },
     });
 
-    if (!message) throw new Error("Message introuvable");
+    if (!message) {
+        throw new Error("Message introuvable");
+    }
 
     if (message.authorId !== userId) {
         throw new Error("Non autorisé");
@@ -63,7 +102,9 @@ export async function deleteMessage(messageId: string, userId: string) {
         where: { id: messageId },
     });
 
-    return { message: "Message supprimé" };
+    return {
+        message: "Message supprimé",
+    };
 }
 
 async function canAccessSalon(salonId: string, userId: string) {
@@ -87,4 +128,3 @@ async function canAccessSalon(salonId: string, userId: string) {
 
     return salon;
 }
-
