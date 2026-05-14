@@ -48,6 +48,8 @@ model User {
   sentSalonInvitations     SalonInvitation[] @relation("SentSalonInvitations")
   receivedSalonInvitations SalonInvitation[] @relation("ReceivedSalonInvitations")
 
+  salonMembershipRequests SalonMembershipRequest[] @relation("SalonMembershipRequests")
+
   @@map("users")
 }
 
@@ -64,6 +66,8 @@ model Salon {
   members     SalonMember[]
   messages    Message[]
   invitations SalonInvitation[]
+
+  membershipRequests SalonMembershipRequest[]
 
   @@index([ownerId])
   @@map("salons")
@@ -162,6 +166,12 @@ enum SalonInvitationStatus {
   REJECTED
 }
 
+enum SalonMembershipRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 model SalonInvitation {
   id         String                @id @default(uuid())
   salonId    String
@@ -180,4 +190,21 @@ model SalonInvitation {
   @@index([senderId])
   @@index([receiverId])
   @@map("salon_invitations")
+}
+
+model SalonMembershipRequest {
+  id          String                       @id @default(uuid())
+  salonId     String
+  requesterId String
+  status      SalonMembershipRequestStatus @default(PENDING)
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @updatedAt
+
+  salon     Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  requester User  @relation("SalonMembershipRequests", fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@unique([salonId, requesterId])
+  @@index([salonId])
+  @@index([requesterId])
+  @@map("salon_membership_requests")
 }

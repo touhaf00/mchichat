@@ -122,6 +122,21 @@ CREATE TABLE `salon_invitations` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
+CREATE TABLE `salon_membership_requests` (
+    `id` VARCHAR(191) NOT NULL,
+    `salonId` VARCHAR(191) NOT NULL,
+    `requesterId` VARCHAR(191) NOT NULL,
+    `status` ENUM('PENDING', 'ACCEPTED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `salon_membership_requests_salonId_idx`(`salonId`),
+    INDEX `salon_membership_requests_requesterId_idx`(`requesterId`),
+    UNIQUE INDEX `salon_membership_requests_salonId_requesterId_key`(`salonId`, `requesterId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- AddForeignKey
 ALTER TABLE `salons` ADD CONSTRAINT `salons_ownerId_fkey` FOREIGN KEY (`ownerId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -163,3 +178,9 @@ ALTER TABLE `salon_invitations` ADD CONSTRAINT `salon_invitations_senderId_fkey`
 
 -- AddForeignKey
 ALTER TABLE `salon_invitations` ADD CONSTRAINT `salon_invitations_receiverId_fkey` FOREIGN KEY (`receiverId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `salon_membership_requests` ADD CONSTRAINT `salon_membership_requests_salonId_fkey` FOREIGN KEY (`salonId`) REFERENCES `salons`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `salon_membership_requests` ADD CONSTRAINT `salon_membership_requests_requesterId_fkey` FOREIGN KEY (`requesterId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

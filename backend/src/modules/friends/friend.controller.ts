@@ -126,6 +126,15 @@ export async function respondToFriendRequestHandler(
 
         const friendRequest = await respondToFriendRequest(id, userId, data);
 
+        if (data.status === "ACCEPTED") {
+            getIO()
+                .to(`user:${friendRequest.senderId}`)
+                .emit("friend_request_accepted", {
+                    message: "Ta demande d'ami a été acceptée",
+                    friendRequest,
+                });
+        }
+
         res.status(200).json({
             message: "Demande d'amitié mise à jour",
             friendRequest,
