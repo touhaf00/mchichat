@@ -1,5 +1,6 @@
 import { io } from "socket.io-client";
+import { env } from "./env";
 
-export const socket = io("http://localhost:5000", {
+export const socket = io(env.socketUrl, {
     autoConnect: false,
 });

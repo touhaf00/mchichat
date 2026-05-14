@@ -8,10 +8,13 @@ import {
     updateSalonRequest,
     type Salon,
 } from "../features/salons/salons.api";
-import {getApiErrorMessage} from "../lib/getApiErrorMessage";
+import { getApiErrorMessage } from "../lib/getApiErrorMessage";
+import { useNotifications } from "../features/notifications/NotificationProvider";
 
 export default function DashboardPage() {
     const { user } = useAuth();
+    const { counts, resetSalon } = useNotifications();
+
     const [salons, setSalons] = useState<Salon[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
@@ -23,14 +26,14 @@ export default function DashboardPage() {
             const data = await getSalonsRequest();
             setSalons(data.salons);
         } catch (err: unknown) {
-            setError(getApiErrorMessage (err,"Erreur lors du chargement des salons"));
+            setError(getApiErrorMessage(err, "Erreur lors du chargement des salons"));
         } finally {
             setIsLoading(false);
         }
     }
 
     useEffect(() => {
-       void loadSalons();
+        void loadSalons();
     }, []);
 
     async function handleDelete(id: string) {
@@ -41,7 +44,7 @@ export default function DashboardPage() {
             await deleteSalonRequest(id);
             await loadSalons();
         } catch (err: unknown) {
-            alert(getApiErrorMessage(err,"Erreur lors de la suppression"));
+            alert(getApiErrorMessage(err, "Erreur lors de la suppression"));
         }
     }
 
@@ -55,7 +58,7 @@ export default function DashboardPage() {
             });
             await loadSalons();
         } catch (err: unknown) {
-            alert(getApiErrorMessage(err,"Erreur lors de la modification"));
+            alert(getApiErrorMessage(err, "Erreur lors de la modification"));
         }
     }
 
@@ -78,11 +81,15 @@ export default function DashboardPage() {
                         Chargement...
                     </div>
                 ) : error ? (
-                    <div className="rounded-2xl bg-red-500/15 p-6 text-red-300">{error}</div>
+                    <div className="rounded-2xl bg-red-500/15 p-6 text-red-300">
+                        {error}
+                    </div>
                 ) : (
                     <SalonList
                         salons={salons}
                         currentUserId={user?.id}
+                        unreadSalonsById={counts.salonsBySalonId}
+                        onOpenSalon={resetSalon}
                         onDelete={handleDelete}
                         onQuickEdit={handleQuickEdit}
                     />

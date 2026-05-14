@@ -2,6 +2,7 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type FormEvent,
 } from "react";
@@ -23,6 +24,7 @@ import {
 import { useAuth } from "../features/auth/useAuth";
 import { getApiErrorMessage } from "../lib/getApiErrorMessage";
 import { socket } from "../lib/socket";
+import { useNotifications } from "../features/notifications/NotificationProvider";
 
 function getOtherParticipant(
     conversation: PrivateConversation,
@@ -37,12 +39,14 @@ function getOtherParticipant(
 
 export default function PrivateMessagesPage() {
     const { user } = useAuth();
+    const { counts, resetConversation } = useNotifications();
+
+    const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+    const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
     const [friends, setFriends] = useState<FriendUser[]>([]);
     const [conversations, setConversations] = useState<PrivateConversation[]>([]);
-    const [selectedConversationId, setSelectedConversationId] = useState<
-        string | null
-    >(null);
+    const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
 
     const [messages, setMessages] = useState<PrivateMessage[]>([]);
     const [content, setContent] = useState("");
@@ -59,6 +63,17 @@ export default function PrivateMessagesPage() {
 
     const [error, setError] = useState("");
     const [messageError, setMessageError] = useState("");
+
+    function isScrolledToBottom() {
+        const element = messagesContainerRef.current;
+
+        if (!element) return true;
+
+        const distanceFromBottom =
+            element.scrollHeight - element.scrollTop - element.clientHeight;
+
+        return distanceFromBottom < 80;
+    }
 
     const selectedConversation = useMemo(() => {
         return conversations.find(
@@ -83,10 +98,7 @@ export default function PrivateMessagesPage() {
             setConversations(conversationsData.conversations);
             setFriends(friendsData.friends);
 
-            if (
-                !selectedConversationId &&
-                conversationsData.conversations.length > 0
-            ) {
+            if (!selectedConversationId && conversationsData.conversations.length > 0) {
                 setSelectedConversationId(conversationsData.conversations[0].id);
             }
         } catch (error: unknown) {
@@ -107,6 +119,7 @@ export default function PrivateMessagesPage() {
         try {
             setIsLoadingMessages(true);
             setMessageError("");
+            setUnreadMessagesCount(0);
 
             const data = await getPrivateMessagesRequest(selectedConversationId);
             setMessages(data.messages);
@@ -119,24 +132,21 @@ export default function PrivateMessagesPage() {
         }
     }, [selectedConversationId]);
 
-    const handleSearchGifs = useCallback(
-        async (search = "funny") => {
-            try {
-                setIsLoadingGifs(true);
-                setMessageError("");
+    const handleSearchGifs = useCallback(async (search = "funny") => {
+        try {
+            setIsLoadingGifs(true);
+            setMessageError("");
 
-                const data = await searchGifsRequest(search.trim() || "funny");
-                setGifs(data.gifs);
-            } catch (error: unknown) {
-                setMessageError(
-                    getApiErrorMessage(error, "Erreur lors du chargement des GIFs")
-                );
-            } finally {
-                setIsLoadingGifs(false);
-            }
-        },
-        []
-    );
+            const data = await searchGifsRequest(search.trim() || "funny");
+            setGifs(data.gifs);
+        } catch (error: unknown) {
+            setMessageError(
+                getApiErrorMessage(error, "Erreur lors du chargement des GIFs")
+            );
+        } finally {
+            setIsLoadingGifs(false);
+        }
+    }, []);
 
     useEffect(() => {
         void loadConversations();
@@ -170,13 +180,19 @@ export default function PrivateMessagesPage() {
 
                 return [...currentMessages, newMessage];
             });
+
+            const isMine = newMessage.authorId === user?.id;
+
+            if (!isMine && !isScrolledToBottom()) {
+                setUnreadMessagesCount((count) => count + 1);
+            }
         });
 
         return () => {
             socket.emit("leave_private_conversation", selectedConversationId);
             socket.off("private_message_created");
         };
-    }, [selectedConversationId]);
+    }, [selectedConversationId, user?.id]);
 
     async function handleStartConversation(friendId: string) {
         try {
@@ -214,7 +230,6 @@ export default function PrivateMessagesPage() {
             });
 
             setContent("");
-
             await loadConversations();
         } catch (error: unknown) {
             setMessageError(
@@ -238,7 +253,6 @@ export default function PrivateMessagesPage() {
 
             setShowGifPicker(false);
             setGifSearch("");
-
             await loadConversations();
         } catch (error: unknown) {
             setMessageError(
@@ -301,6 +315,9 @@ export default function PrivateMessagesPage() {
                                 const otherUser = getOtherParticipant(conversation, user?.id);
                                 const lastMessage = conversation.messages?.[0];
 
+                                const unreadCount = counts.messagesByConversationId[conversation.id] || 0;
+                                const hasUnread = unreadCount > 0;
+
                                 return (
                                     <button
                                         key={conversation.id}
@@ -308,16 +325,30 @@ export default function PrivateMessagesPage() {
                                         onClick={() => {
                                             setSelectedConversationId(conversation.id);
                                             setShowGifPicker(false);
+                                            setUnreadMessagesCount(0);
+                                            resetConversation(conversation.id);
                                         }}
                                         className={`w-full rounded-xl p-3 text-left transition ${
                                             selectedConversationId === conversation.id
                                                 ? "bg-fuchsia-500/20 ring-1 ring-fuchsia-400"
-                                                : "bg-white/5 hover:bg-white/10"
+                                                : hasUnread
+                                                    ? "bg-fuchsia-500/10 ring-1 ring-fuchsia-400"
+                                                    : "bg-white/5 hover:bg-white/10"
                                         }`}
                                     >
-                                        <p className="font-semibold">
-                                            {otherUser?.username || "Utilisateur"}
-                                        </p>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className="font-semibold">
+                                                {otherUser?.username || "Utilisateur"}
+                                            </p>
+
+                                            {hasUnread && (
+                                                <span
+                                                    className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
+            {unreadCount > 99 ? "99+" : unreadCount}
+        </span>
+                                            )}
+                                        </div>
+
                                         <p className="truncate text-sm text-white/50">
                                             {lastMessage?.gifUrl
                                                 ? "GIF"
@@ -380,7 +411,15 @@ export default function PrivateMessagesPage() {
                             </div>
                         )}
 
-                        <div className="mt-4 flex-1 space-y-3 overflow-y-auto pr-2">
+                        <div
+                            ref={messagesContainerRef}
+                            onScroll={() => {
+                                if (isScrolledToBottom()) {
+                                    setUnreadMessagesCount(0);
+                                }
+                            }}
+                            className="mt-4 flex-1 space-y-3 overflow-y-auto pr-2"
+                        >
                             {isLoadingMessages ? (
                                 <p className="text-white/60">Chargement des messages...</p>
                             ) : messages.length > 0 ? (
@@ -402,19 +441,19 @@ export default function PrivateMessagesPage() {
                                                 }`}
                                             >
                                                 <div className="mb-1 flex items-center justify-between gap-3">
-                          <span className="text-xs opacity-80">
-                            {message.author?.username}
-                          </span>
+                                                    <span className="text-xs opacity-80">
+                                                        {message.author?.username}
+                                                    </span>
 
                                                     <span className="text-xs opacity-60">
-                            {new Date(message.createdAt).toLocaleTimeString(
-                                [],
-                                {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                }
-                            )}
-                          </span>
+                                                        {new Date(message.createdAt).toLocaleTimeString(
+                                                            [],
+                                                            {
+                                                                hour: "2-digit",
+                                                                minute: "2-digit",
+                                                            }
+                                                        )}
+                                                    </span>
                                                 </div>
 
                                                 {message.content && (
@@ -450,6 +489,23 @@ export default function PrivateMessagesPage() {
                                 </p>
                             )}
                         </div>
+
+                        {unreadMessagesCount > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    messagesContainerRef.current?.scrollTo({
+                                        top: messagesContainerRef.current.scrollHeight,
+                                        behavior: "smooth",
+                                    });
+                                    setUnreadMessagesCount(0);
+                                }}
+                                className="mx-auto mt-3 rounded-full bg-fuchsia-500 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-600"
+                            >
+                                {unreadMessagesCount} message
+                                {unreadMessagesCount > 1 ? "s" : ""} non lu
+                            </button>
+                        )}
 
                         <form onSubmit={handleSendMessage} className="mt-6 flex flex-col gap-3">
                             {showGifPicker && (
