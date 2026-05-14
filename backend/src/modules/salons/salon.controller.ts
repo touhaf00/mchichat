@@ -6,8 +6,13 @@ import {
     getSalonById,
     getSalons as getSalonsService,
     updateSalon,
+    acceptSalonMembershipRequest,
+    getSalonMembershipRequests,
+    rejectSalonMembershipRequest,
+    requestSalonMembership,
 } from "./salon.service";
 import  {getStringParam} from "../../utils/params";
+import {getIO} from "../../lib/socket";
 
 export async function getSalons(
     req: Request,
@@ -117,6 +122,115 @@ export async function deleteSalonHandler(
         const result = await deleteSalon(id, userId);
 
         res.status(200).json(result);
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function requestSalonMembershipHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    try {
+        const userId = req.user?.userId;
+
+        if (!userId) {
+            return res.status(401).json({ message: "Non autorisé" });
+        }
+
+        const salonId = getStringParam(req.params.id, "Salon id");
+
+        const request = await requestSalonMembership(salonId, userId);
+
+        getIO()
+            .to(`user:${request.salon.ownerId}`)
+            .emit("salon_membership_request_received", {
+                message: "Nouvelle demande d'adhésion à un salon",
+                request,
+            });
+
+        res.status(201).json({
+            message: "Demande d'adhésion envoyée",
+            request,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function getSalonMembershipRequestsHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    try {
+        const userId = req.user?.userId;
+
+        if (!userId) {
+            return res.status(401).json({ message: "Non autorisé" });
+        }
+
+        const requests = await getSalonMembershipRequests(userId);
+
+        res.status(200).json({ requests });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function acceptSalonMembershipRequestHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    try {
+        const userId = req.user?.userId;
+
+        if (!userId) {
+            return res.status(401).json({ message: "Non autorisé" });
+        }
+
+        const requestId = getStringParam(req.params.requestId, "Request id");
+
+        const request = await acceptSalonMembershipRequest(requestId, userId);
+
+        getIO()
+            .to(`user:${request.requesterId}`)
+            .emit("salon_membership_request_accepted", {
+                message: "Ta demande d'adhésion au salon a été acceptée",
+                request,
+            });
+
+        res.status(200).json({
+            message: "Demande d'adhésion acceptée",
+            request,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function rejectSalonMembershipRequestHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    try {
+        const userId = req.user?.userId;
+
+        if (!userId) {
+            return res.status(401).json({ message: "Non autorisé" });
+        }
+
+        const requestId = getStringParam(req.params.requestId, "Request id");
+
+        const request = await rejectSalonMembershipRequest(requestId, userId);
+
+        res.status(200).json({
+            message: "Demande d'adhésion refusée",
+            request,
+        });
     } catch (error) {
         next(error);
     }
