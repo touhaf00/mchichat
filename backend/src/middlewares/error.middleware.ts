@@ -1,14 +1,13 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { ZodError } from "zod";
 
 export function errorHandler(
     err: unknown,
     _req: Request,
     res: Response,
-    next: NextFunction
 ) {
-    void next;
     console.error(err);
+
     if (err instanceof ZodError) {
         return res.status(400).json({
             message: "Données invalides",
@@ -25,7 +24,7 @@ export function errorHandler(
         });
     }
 
-    res.status(500).json({
+    return res.status(500).json({
         message: "Internal server error",
     });
 }

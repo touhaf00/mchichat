@@ -13,6 +13,7 @@ import {
     searchUsersByUsername,
     sendFriendRequest,
 } from "./friend.service";
+import { getIO } from "../../lib/socket";
 
 export async function searchUsersHandler(
     req: Request,
@@ -51,6 +52,13 @@ export async function sendFriendRequestHandler(
 
         const data = sendFriendRequestSchema.parse(req.body);
         const friendRequest = await sendFriendRequest(userId, data);
+
+        getIO()
+            .to(`user:${data.receiverId}`)
+            .emit("friend_request_received", {
+                message: "Nouvelle demande d'ami",
+                friendRequest,
+            });
 
         res.status(201).json({
             message: "Demande d'amitié envoyée",

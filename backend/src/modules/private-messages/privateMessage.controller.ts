@@ -110,6 +110,24 @@ export async function createPrivateMessageHandler(
         getIO()
             .to(`private:${id}`)
             .emit("private_message_created", message);
+
+        const conversation = await getPrivateConversations(userId);
+        const currentConversation = conversation.find((item) => item.id === id);
+
+        const receiver = currentConversation?.participants.find(
+            (participant) => participant.userId !== userId
+        );
+
+        if (receiver) {
+            getIO()
+                .to(`user:${receiver.userId}`)
+                .emit("private_message_notification", {
+                    message: "Nouveau message privé",
+                    conversationId: id,
+                    privateMessage: message,
+                });
+        }
+
         res.status(201).json({
             message,
         });

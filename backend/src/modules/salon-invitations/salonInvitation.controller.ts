@@ -1,4 +1,4 @@
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { inviteToSalonSchema } from "./salonInvitation.schema";
 import {
     acceptSalonInvitation,
@@ -7,48 +7,83 @@ import {
     rejectSalonInvitation,
 } from "./salonInvitation.service";
 import { getStringParam } from "../../utils/params";
+import { getIO } from "../../lib/socket";
 
-export async function inviteToSalonHandler(req: Request, res: Response) {
-    const userId = req.user!.userId;
-    const salonId = getStringParam(req.params.id, "salonId");
+export async function inviteToSalonHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    try {
+        const userId = req.user!.userId;
+        const salonId = getStringParam(req.params.id, "salonId");
 
-    const result = inviteToSalonSchema.safeParse(req.body);
+        const data = inviteToSalonSchema.parse(req.body);
 
-    if (!result.success) {
-        return res.status(400).json({ message: "Données invalides" });
+        const invitation = await inviteToSalon({
+            salonId,
+            senderId: userId,
+            receiverId: data.receiverId,
+        });
+
+        getIO()
+            .to(`user:${data.receiverId}`)
+            .emit("salon_invitation_received", {
+                message: "Nouvelle invitation salon",
+                invitation,
+            });
+
+        return res.status(201).json({ invitation });
+    } catch (error) {
+        next(error);
     }
-
-    const invitation = await inviteToSalon({
-        salonId,
-        senderId: userId,
-        receiverId: result.data.receiverId,
-    });
-
-    return res.status(201).json({ invitation });
 }
 
-export async function getMySalonInvitationsHandler(req: Request, res: Response) {
-    const userId = req.user!.userId;
+export async function getMySalonInvitationsHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    try {
+        const userId = req.user!.userId;
+        const invitations = await getMySalonInvitations(userId);
 
-    const invitations = await getMySalonInvitations(userId);
-
-    return res.json({ invitations });
+        return res.status(200).json({ invitations });
+    } catch (error) {
+        next(error);
+    }
 }
 
-export async function acceptSalonInvitationHandler(req: Request, res: Response) {
-    const userId = req.user!.userId;
-    const invitationId = getStringParam(req.params.id, "invitationId");
+export async function acceptSalonInvitationHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    try {
+        const userId = req.user!.userId;
+        const invitationId = getStringParam(req.params.id, "invitationId");
 
-    const invitation = await acceptSalonInvitation(invitationId, userId);
+        const invitation = await acceptSalonInvitation(invitationId, userId);
 
-    return res.json({ invitation });
+        return res.status(200).json({ invitation });
+    } catch (error) {
+        next(error);
+    }
 }
 
-export async function rejectSalonInvitationHandler(req: Request, res: Response) {
-    const userId = req.user!.userId;
-    const invitationId = getStringParam(req.params.id, "invitationId");
+export async function rejectSalonInvitationHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    try {
+        const userId = req.user!.userId;
+        const invitationId = getStringParam(req.params.id, "invitationId");
 
-    const invitation = await rejectSalonInvitation(invitationId, userId);
+        const invitation = await rejectSalonInvitation(invitationId, userId);
 
-    return res.json({ invitation });
+        return res.status(200).json({ invitation });
+    } catch (error) {
+        next(error);
+    }
 }
