@@ -11,6 +11,7 @@ import SalonPage from "../pages/SalonPage";
 import NotFoundPage from "../pages/NotFoundPage";
 import FriendsPage from "../pages/FriendsPage.tsx";
 import PrivateMessagesPage from "../pages/PrivateMessagesPage";
+import FeedPage from "../pages/FeedPage.tsx";
 
 
 export const router = createBrowserRouter([
@@ -53,6 +54,10 @@ export const router = createBrowserRouter([
                     {
                         path: "messages",
                         element: <PrivateMessagesPage />,
+                    },
+                    {
+                        path: "/feed",
+                        element: <FeedPage />,
                     }
                 ],
             },

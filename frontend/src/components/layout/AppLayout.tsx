@@ -49,6 +49,10 @@ export function AppLayout() {
 
                         {isAuthenticated ? (
                             <>
+                                <NavLink to="/feed" className="hover:text-fuchsia-300">
+                                    Fil d’actualité
+                                </NavLink>
+
                                 <NavLink
                                     to="/dashboard"
                                     onClick={resetSalonMembershipRequests}
