@@ -1,0 +1,630 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { useAuth } from "../features/auth/useAuth";
+import {
+    createPostCommentRequest,
+    createPostRequest,
+    deletePostRequest,
+    getPostsRequest,
+    togglePostLikeRequest,
+    updatePostRequest,
+    type FeedPost,
+} from "../features/feed/feed.api";
+import { getWeatherRequest, type Weather } from "../features/weather/weather.api";
+import { getApiErrorMessage } from "../lib/getApiErrorMessage";
+import { useNotifications } from "../features/notifications/NotificationProvider";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+function getWeatherLabel(code: number) {
+    if (code === 0) return "Ciel dégagé";
+    if ([1, 2, 3].includes(code)) return "Partiellement nuageux";
+    if ([45, 48].includes(code)) return "Brouillard";
+    if ([51, 53, 55, 61, 63, 65].includes(code)) return "Pluie";
+    if ([71, 73, 75].includes(code)) return "Neige";
+    if ([95, 96, 99].includes(code)) return "Orage";
+
+    return "Météo variable";
+}
+
+function getMediaSrc(mediaUrl: string) {
+    if (mediaUrl.startsWith("http")) {
+        return mediaUrl;
+    }
+
+    return `${API_URL}${mediaUrl}`;
+}
+
+export default function FeedPage() {
+    const { user } = useAuth();
+    const { showToast } = useNotifications();
+
+    const [weather, setWeather] = useState<Weather | null>(null);
+    const [posts, setPosts] = useState<FeedPost[]>([]);
+
+    const [content, setContent] = useState("");
+    const [media, setMedia] = useState<File | null>(null);
+    const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
+
+    const [commentByPostId, setCommentByPostId] = useState<Record<string, string>>({});
+    const [editingPostId, setEditingPostId] = useState<string | null>(null);
+    const [editingContent, setEditingContent] = useState("");
+    const [editingMedia, setEditingMedia] = useState<File | null>(null);
+    const [editingMediaPreviewUrl, setEditingMediaPreviewUrl] = useState<string | null>(null);
+
+    const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+    const [isLoadingWeather, setIsLoadingWeather] = useState(true);
+    const [isPosting, setIsPosting] = useState(false);
+    const [error, setError] = useState("");
+
+    function handleMediaChange(file: File | null) {
+        setMedia(file);
+
+        if (mediaPreviewUrl) {
+            URL.revokeObjectURL(mediaPreviewUrl);
+        }
+
+        setMediaPreviewUrl(file ? URL.createObjectURL(file) : null);
+    }
+
+    function handleEditingMediaChange(file: File | null) {
+        setEditingMedia(file);
+
+        if (editingMediaPreviewUrl) {
+            URL.revokeObjectURL(editingMediaPreviewUrl);
+        }
+
+        setEditingMediaPreviewUrl(file ? URL.createObjectURL(file) : null);
+    }
+
+    async function loadFeed() {
+        try {
+            setIsLoadingPosts(true);
+            setError("");
+
+            const postsData = await getPostsRequest();
+            setPosts(postsData.posts);
+        } catch (err: unknown) {
+            setError(getApiErrorMessage(err, "Erreur lors du chargement du fil"));
+        } finally {
+            setIsLoadingPosts(false);
+        }
+    }
+
+    async function loadWeather() {
+        if (!navigator.geolocation) {
+            setIsLoadingWeather(false);
+            showToast("La géolocalisation n'est pas disponible sur ce navigateur");
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                try {
+                    const data = await getWeatherRequest(
+                        position.coords.latitude,
+                        position.coords.longitude
+                    );
+
+                    setWeather(data.weather);
+                } catch (err: unknown) {
+                    showToast(getApiErrorMessage(err, "Erreur météo"));
+                } finally {
+                    setIsLoadingWeather(false);
+                }
+            },
+            () => {
+                setIsLoadingWeather(false);
+                showToast("Impossible d'obtenir ta position pour la météo");
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 60000,
+            }
+        );
+    }
+
+    useEffect(() => {
+        void loadFeed();
+        void loadWeather();
+
+        return () => {
+            if (mediaPreviewUrl) {
+                URL.revokeObjectURL(mediaPreviewUrl);
+            }
+
+            if (editingMediaPreviewUrl) {
+                URL.revokeObjectURL(editingMediaPreviewUrl);
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    async function handleCreatePost(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+
+        if (!content.trim() && !media) {
+            showToast("Ajoute un texte ou un média avant de publier");
+            return;
+        }
+
+        try {
+            setIsPosting(true);
+
+            const data = await createPostRequest({
+                content: content.trim(),
+                media,
+            });
+
+            setPosts((current) => [data.post, ...current]);
+            setContent("");
+            handleMediaChange(null);
+            showToast("Post publié");
+        } catch (err: unknown) {
+            showToast(getApiErrorMessage(err, "Erreur lors de la publication"));
+        } finally {
+            setIsPosting(false);
+        }
+    }
+
+    async function handleToggleLike(postId: string) {
+        try {
+            const data = await togglePostLikeRequest(postId);
+
+            setPosts((current) =>
+                current.map((post) => (post.id === postId ? data.post : post))
+            );
+        } catch (err: unknown) {
+            showToast(getApiErrorMessage(err, "Erreur lors du like"));
+        }
+    }
+
+    async function handleCreateComment(postId: string) {
+        const commentContent = commentByPostId[postId]?.trim();
+
+        if (!commentContent) return;
+
+        try {
+            const data = await createPostCommentRequest(postId, commentContent);
+
+            setPosts((current) =>
+                current.map((post) =>
+                    post.id === postId
+                        ? {
+                            ...post,
+                            comments: [...post.comments, data.comment],
+                            commentsCount: post.commentsCount + 1,
+                        }
+                        : post
+                )
+            );
+
+            setCommentByPostId((current) => ({
+                ...current,
+                [postId]: "",
+            }));
+        } catch (err: unknown) {
+            showToast(getApiErrorMessage(err, "Erreur lors du commentaire"));
+        }
+    }
+
+    async function handleDeletePost(postId: string) {
+        try {
+            await deletePostRequest(postId);
+            setPosts((current) => current.filter((post) => post.id !== postId));
+            showToast("Post supprimé");
+        } catch (err: unknown) {
+            showToast(getApiErrorMessage(err, "Erreur lors de la suppression"));
+        }
+    }
+
+    function startEditing(post: FeedPost) {
+        setEditingPostId(post.id);
+        setEditingContent(post.content);
+        handleEditingMediaChange(null);
+    }
+
+    function cancelEditing() {
+        setEditingPostId(null);
+        setEditingContent("");
+        handleEditingMediaChange(null);
+    }
+
+    async function handleUpdatePost(postId: string) {
+        if (!editingContent.trim()) return;
+
+        try {
+            const data = await updatePostRequest(postId, {
+                content: editingContent.trim(),
+                media: editingMedia,
+            });
+
+            setPosts((current) =>
+                current.map((post) => (post.id === postId ? data.post : post))
+            );
+
+            cancelEditing();
+            showToast("Post modifié");
+        } catch (err: unknown) {
+            showToast(getApiErrorMessage(err, "Erreur lors de la modification"));
+        }
+    }
+
+    if (isLoadingPosts) {
+        return (
+            <div className="rounded-2xl border border-white/10 bg-neutral-900 p-6">
+                Chargement du fil...
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="rounded-2xl bg-red-500/15 p-6 text-red-300">
+                {error}
+            </div>
+        );
+    }
+
+    return (
+        <section className="mx-auto max-w-3xl space-y-6">
+            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-fuchsia-500/20 to-blue-500/10 p-6 shadow-2xl">
+                {isLoadingWeather ? (
+                    <p className="text-white/70">Chargement de la météo locale...</p>
+                ) : weather ? (
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <p className="text-sm uppercase tracking-wide text-white/50">
+                                Météo locale
+                            </p>
+
+                            <h1 className="mt-1 text-3xl font-bold">{weather.city}</h1>
+
+                            <p className="mt-1 text-sm text-white/50">
+                                {weather.country}
+                            </p>
+
+                            <p className="mt-2 text-white/70">
+                                {getWeatherLabel(weather.weatherCode)}
+                            </p>
+
+                            <p className="mt-1 text-sm text-white/50">
+                                Ressenti {Math.round(weather.apparentTemperature)}° ·
+                                Humidité {weather.humidity}%
+                            </p>
+                        </div>
+
+                        <div className="text-right">
+                            <p className="text-5xl font-extrabold text-fuchsia-300">
+                                {Math.round(weather.temperature)}°
+                            </p>
+
+                            <p className="mt-2 text-sm text-white/60">
+                                Vent {Math.round(weather.windSpeed)} km/h
+                            </p>
+                        </div>
+                    </div>
+                ) : (
+                    <p className="text-white/70">
+                        Météo indisponible. Autorise la localisation pour l'afficher.
+                    </p>
+                )}
+            </div>
+
+            <form
+                onSubmit={handleCreatePost}
+                className="rounded-3xl border border-white/10 bg-neutral-900 p-6"
+            >
+                <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-fuchsia-500 font-bold">
+                        {user?.firstName?.[0]}
+                        {user?.lastName?.[0]}
+                    </div>
+
+                    <div>
+                        <p className="font-semibold">
+                            {user?.firstName} {user?.lastName}
+                        </p>
+                        <p className="text-sm text-white/50">@{user?.username}</p>
+                    </div>
+                </div>
+
+                <textarea
+                    value={content}
+                    onChange={(event) => setContent(event.target.value)}
+                    placeholder="Quoi de neuf sur Mchichat ?"
+                    className="min-h-32 w-full resize-none rounded-2xl border border-white/10 bg-neutral-800 px-4 py-3 outline-none focus:border-fuchsia-400"
+                />
+
+                <label className="mt-3 block cursor-pointer rounded-2xl border border-dashed border-white/20 bg-neutral-800 p-5 text-center transition hover:border-fuchsia-400 hover:bg-neutral-800/80">
+                    <input
+                        type="file"
+                        accept="image/*,video/*"
+                        className="hidden"
+                        onChange={(event) => {
+                            handleMediaChange(event.target.files?.[0] || null);
+                        }}
+                    />
+
+                    <p className="font-semibold text-white">
+                        Ajouter une photo ou une vidéo
+                    </p>
+
+                    <p className="mt-1 text-sm text-white/50">
+                        Clique ici pour choisir un média depuis ton appareil
+                    </p>
+                </label>
+
+                {media && mediaPreviewUrl && (
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-neutral-950 p-3">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-sm font-semibold text-white">
+                                    {media.name}
+                                </p>
+                                <p className="text-xs text-white/50">
+                                    {(media.size / 1024 / 1024).toFixed(2)} MB
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => handleMediaChange(null)}
+                                className="rounded-lg bg-red-500 px-3 py-2 text-sm font-medium hover:bg-red-600"
+                            >
+                                Retirer
+                            </button>
+                        </div>
+
+                        {media.type.startsWith("image/") && (
+                            <img
+                                src={mediaPreviewUrl}
+                                alt="Aperçu"
+                                className="max-h-[420px] w-full rounded-xl object-cover"
+                            />
+                        )}
+
+                        {media.type.startsWith("video/") && (
+                            <video
+                                src={mediaPreviewUrl}
+                                controls
+                                className="max-h-[420px] w-full rounded-xl object-cover"
+                            />
+                        )}
+                    </div>
+                )}
+
+                <button
+                    type="submit"
+                    disabled={isPosting || (!content.trim() && !media)}
+                    className="mt-4 rounded-xl bg-fuchsia-500 px-5 py-3 font-semibold hover:bg-fuchsia-600 disabled:opacity-60"
+                >
+                    {isPosting ? "Publication..." : "Publier"}
+                </button>
+            </form>
+
+            <div className="space-y-5">
+                {posts.length > 0 ? (
+                    posts.map((post) => {
+                        const isOwner = post.authorId === user?.id;
+                        const isEditing = editingPostId === post.id;
+
+                        return (
+                            <article
+                                key={post.id}
+                                className="rounded-3xl border border-white/10 bg-neutral-900 p-6"
+                            >
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 font-bold">
+                                            {post.author.firstName[0]}
+                                            {post.author.lastName[0]}
+                                        </div>
+
+                                        <div>
+                                            <p className="font-semibold">
+                                                {post.author.firstName} {post.author.lastName}
+                                            </p>
+
+                                            <p className="text-sm text-white/50">
+                                                @{post.author.username} ·{" "}
+                                                {new Date(post.createdAt).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {isOwner && (
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => startEditing(post)}
+                                                className="rounded-lg bg-blue-500 px-3 py-2 text-sm hover:bg-blue-600"
+                                            >
+                                                Modifier
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleDeletePost(post.id)}
+                                                className="rounded-lg bg-red-500 px-3 py-2 text-sm hover:bg-red-600"
+                                            >
+                                                Supprimer
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {isEditing ? (
+                                    <div className="mt-4 space-y-3">
+                                        <textarea
+                                            value={editingContent}
+                                            onChange={(event) =>
+                                                setEditingContent(event.target.value)
+                                            }
+                                            className="min-h-28 w-full rounded-2xl border border-white/10 bg-neutral-800 px-4 py-3 outline-none focus:border-fuchsia-400"
+                                        />
+
+                                        <label className="block cursor-pointer rounded-2xl border border-dashed border-white/20 bg-neutral-800 p-4 text-center transition hover:border-fuchsia-400 hover:bg-neutral-800/80">
+                                            <input
+                                                type="file"
+                                                accept="image/*,video/*"
+                                                className="hidden"
+                                                onChange={(event) => {
+                                                    handleEditingMediaChange(
+                                                        event.target.files?.[0] || null
+                                                    );
+                                                }}
+                                            />
+
+                                            <p className="text-sm font-semibold text-white">
+                                                Remplacer le média
+                                            </p>
+                                        </label>
+
+                                        {editingMedia && editingMediaPreviewUrl && (
+                                            <div className="rounded-2xl border border-white/10 bg-neutral-950 p-3">
+                                                <div className="mb-3 flex items-center justify-between gap-3">
+                                                    <p className="text-sm text-white">
+                                                        {editingMedia.name}
+                                                    </p>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleEditingMediaChange(null)
+                                                        }
+                                                        className="rounded-lg bg-red-500 px-3 py-2 text-sm hover:bg-red-600"
+                                                    >
+                                                        Retirer
+                                                    </button>
+                                                </div>
+
+                                                {editingMedia.type.startsWith("image/") && (
+                                                    <img
+                                                        src={editingMediaPreviewUrl}
+                                                        alt="Aperçu"
+                                                        className="max-h-[420px] w-full rounded-xl object-cover"
+                                                    />
+                                                )}
+
+                                                {editingMedia.type.startsWith("video/") && (
+                                                    <video
+                                                        src={editingMediaPreviewUrl}
+                                                        controls
+                                                        className="max-h-[420px] w-full rounded-xl object-cover"
+                                                    />
+                                                )}
+                                            </div>
+                                        )}
+
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleUpdatePost(post.id)}
+                                                className="rounded-lg bg-green-500 px-4 py-2 text-sm hover:bg-green-600"
+                                            >
+                                                Enregistrer
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={cancelEditing}
+                                                className="rounded-lg bg-white/10 px-4 py-2 text-sm hover:bg-white/20"
+                                            >
+                                                Annuler
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="mt-4 whitespace-pre-wrap text-white/90">
+                                        {post.content}
+                                    </p>
+                                )}
+
+                                {post.mediaUrl && post.mediaType?.startsWith("image/") && (
+                                    <img
+                                        src={getMediaSrc(post.mediaUrl)}
+                                        alt="Post"
+                                        className="mt-4 max-h-[520px] w-full rounded-2xl object-cover"
+                                    />
+                                )}
+
+                                {post.mediaUrl && post.mediaType?.startsWith("video/") && (
+                                    <video
+                                        src={getMediaSrc(post.mediaUrl)}
+                                        controls
+                                        className="mt-4 max-h-[520px] w-full rounded-2xl object-cover"
+                                    />
+                                )}
+
+                                <div className="mt-5 flex items-center gap-3 border-y border-white/10 py-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleToggleLike(post.id)}
+                                        className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+                                            post.isLikedByMe
+                                                ? "bg-fuchsia-500 text-white"
+                                                : "bg-white/10 hover:bg-white/20"
+                                        }`}
+                                    >
+                                        {post.isLikedByMe ? "Aimé" : "J'aime"} ·{" "}
+                                        {post.likesCount}
+                                    </button>
+
+                                    <span className="text-sm text-white/50">
+                                        {post.commentsCount} commentaire
+                                        {post.commentsCount > 1 ? "s" : ""}
+                                    </span>
+                                </div>
+
+                                <div className="mt-4 space-y-3">
+                                    {post.comments.map((comment) => (
+                                        <div
+                                            key={comment.id}
+                                            className="rounded-2xl bg-white/5 p-4"
+                                        >
+                                            <p className="text-sm font-semibold">
+                                                @{comment.author.username}
+                                            </p>
+
+                                            <p className="mt-1 text-white/80">
+                                                {comment.content}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="mt-4 flex gap-3">
+                                    <input
+                                        value={commentByPostId[post.id] || ""}
+                                        onChange={(event) =>
+                                            setCommentByPostId((current) => ({
+                                                ...current,
+                                                [post.id]: event.target.value,
+                                            }))
+                                        }
+                                        placeholder="Écrire un commentaire..."
+                                        className="flex-1 rounded-xl border border-white/10 bg-neutral-800 px-4 py-3 outline-none focus:border-fuchsia-400"
+                                    />
+
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleCreateComment(post.id)}
+                                        disabled={!commentByPostId[post.id]?.trim()}
+                                        className="rounded-xl bg-fuchsia-500 px-4 py-2 font-semibold hover:bg-fuchsia-600 disabled:opacity-60"
+                                    >
+                                        Envoyer
+                                    </button>
+                                </div>
+                            </article>
+                        );
+                    })
+                ) : (
+                    <div className="rounded-3xl border border-white/10 bg-neutral-900 p-8 text-center text-white/60">
+                        Aucun post pour le moment. Sois le premier à poster.
+                    </div>
+                )}
+            </div>
+        </section>
+    );
+}
