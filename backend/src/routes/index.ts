@@ -6,6 +6,8 @@ import { giphyRouter } from "../modules/giphy/giphy.routes";
 import { friendRouter } from "../modules/friends/friend.routes";
 import { privateMessageRouter } from "../modules/private-messages/privateMessage.routes";
 import { salonInvitationRouter } from "../modules/salon-invitations/salonInvitation.routes";
+import { weatherRouter } from "../modules/weather/weather.routes";
+import { postRouter } from "../modules/posts/post.routes";
 
 const router = Router();
 
@@ -22,5 +24,7 @@ router.use("/giphy", giphyRouter);
 router.use("/friends", friendRouter);
 router.use("/", privateMessageRouter);
 router.use("/", salonInvitationRouter);
+router.use("/weather", weatherRouter);
+router.use("/posts", postRouter);
 
 export { router };
