@@ -7,6 +7,7 @@ import { env } from "./config/env";
 import { router } from "./routes";
 import { notFoundHandler } from "./middlewares/notFound.middleware";
 import { errorHandler } from "./middlewares/error.middleware";
+import path from "path";
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use(
     })
 );
 
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use("/api/v1", router);
 
 app.use(notFoundHandler);
