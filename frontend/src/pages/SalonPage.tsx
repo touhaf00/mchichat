@@ -17,6 +17,7 @@ import { getApiErrorMessage } from "../lib/getApiErrorMessage";
 import { searchGifsRequest, type GifResult } from "../features/giphy/giphy.api";
 import { useAuth } from "../features/auth/useAuth";
 import { socket } from "../lib/socket";
+import { useNotifications } from "../features/notifications/NotificationProvider";
 
 type Message = {
     id: string;
@@ -34,8 +35,8 @@ type Message = {
 
 export default function SalonPage() {
     const { id } = useParams();
-
     const { user } = useAuth();
+    const { showToast } = useNotifications();
 
     const [salon, setSalon] = useState<SalonDetails | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -45,8 +46,6 @@ export default function SalonPage() {
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
     const [isLoadingFriends, setIsLoadingFriends] = useState(false);
     const [isInviting, setIsInviting] = useState(false);
-    const [inviteMessage, setInviteMessage] = useState("");
-    const [inviteError, setInviteError] = useState("");
 
     const [isLoadingSalon, setIsLoadingSalon] = useState(true);
     const [isLoadingMessages, setIsLoadingMessages] = useState(true);
@@ -86,7 +85,9 @@ export default function SalonPage() {
             const data = await getMessages(id);
             setMessages(data.messages);
         } catch (err: unknown) {
-            setMessageError(getApiErrorMessage(err, "Erreur lors du chargement des messages"));
+            setMessageError(
+                getApiErrorMessage(err, "Erreur lors du chargement des messages")
+            );
         } finally {
             setIsLoadingMessages(false);
         }
@@ -95,14 +96,12 @@ export default function SalonPage() {
     async function openInviteModal() {
         try {
             setIsLoadingFriends(true);
-            setInviteError("");
-            setInviteMessage("");
 
             const data = await getFriendsRequest();
             setFriends(data.friends);
             setIsInviteModalOpen(true);
         } catch (err: unknown) {
-            setInviteError(getApiErrorMessage(err, "Erreur lors du chargement des amis"));
+            showToast(getApiErrorMessage(err, "Erreur lors du chargement des amis"));
         } finally {
             setIsLoadingFriends(false);
         }
@@ -113,13 +112,11 @@ export default function SalonPage() {
 
         try {
             setIsInviting(true);
-            setInviteError("");
-            setInviteMessage("");
 
             await inviteToSalonRequest(id, receiverId);
-            setInviteMessage("Invitation envoyée.");
+            showToast("Invitation envoyée");
         } catch (err: unknown) {
-            setInviteError(getApiErrorMessage(err, "Erreur lors de l'envoi de l'invitation"));
+            showToast(getApiErrorMessage(err, "Erreur lors de l'envoi de l'invitation"));
         } finally {
             setIsInviting(false);
         }
@@ -132,9 +129,7 @@ export default function SalonPage() {
 
         const trimmedContent = content.trim();
 
-        if (!trimmedContent) {
-            return;
-        }
+        if (!trimmedContent) return;
 
         try {
             setIsSending(true);
@@ -147,9 +142,27 @@ export default function SalonPage() {
 
             setContent("");
         } catch (err: unknown) {
-            setMessageError(getApiErrorMessage(err, "Erreur lors de l'envoi du message"));
+            setMessageError(
+                getApiErrorMessage(err, "Erreur lors de l'envoi du message")
+            );
         } finally {
             setIsSending(false);
+        }
+    }
+
+    async function loadDefaultGifs() {
+        try {
+            setIsSearchingGifs(true);
+            setMessageError("");
+
+            const data = await searchGifsRequest("hello");
+            setGifs(data.gifs);
+        } catch (err: unknown) {
+            setMessageError(
+                getApiErrorMessage(err, "Erreur lors du chargement des GIFs")
+            );
+        } finally {
+            setIsSearchingGifs(false);
         }
     }
 
@@ -189,23 +202,9 @@ export default function SalonPage() {
             setIsGifPickerOpen(false);
             setGifQuery("");
         } catch (err: unknown) {
-            setMessageError(getApiErrorMessage(err, "Erreur lors de l'envoi du Gif"));
+            setMessageError(getApiErrorMessage(err, "Erreur lors de l'envoi du GIF"));
         } finally {
             setIsSending(false);
-        }
-    }
-
-    async function loadDefaultGifs() {
-        try {
-            setIsSearchingGifs(true);
-            setMessageError("");
-
-            const data = await searchGifsRequest("hello");
-            setGifs(data.gifs);
-        } catch (err: unknown) {
-            setMessageError(getApiErrorMessage(err, "Erreur lors du chargement des GIFs"));
-        } finally {
-            setIsSearchingGifs(false);
         }
     }
 
@@ -236,17 +235,24 @@ export default function SalonPage() {
                     (message) => message.id === newMessage.id
                 );
 
-                if (alreadyExists) {
-                    return currentMessages;
-                }
+                if (alreadyExists) return currentMessages;
 
                 return [...currentMessages, newMessage];
             });
         });
 
+        socket.on("salon_message_updated", (updatedMessage: Message) => {
+            setMessages((currentMessages) =>
+                currentMessages.map((message) =>
+                    message.id === updatedMessage.id ? updatedMessage : message
+                )
+            );
+        });
+
         return () => {
             socket.emit("leave_salon", id);
             socket.off("salon_message_created");
+            socket.off("salon_message_updated");
         };
     }, [id]);
 
@@ -274,18 +280,6 @@ export default function SalonPage() {
                 ← Retour au dashboard
             </Link>
 
-            {inviteMessage && (
-                <div className="rounded-xl bg-green-500/15 p-4 text-green-300">
-                    {inviteMessage}
-                </div>
-            )}
-
-            {inviteError && (
-                <div className="rounded-xl bg-red-500/15 p-4 text-red-300">
-                    {inviteError}
-                </div>
-            )}
-
             <div className="rounded-2xl border border-white/10 bg-neutral-900 p-6">
                 <div className="flex items-start justify-between gap-4">
                     <div>
@@ -297,7 +291,20 @@ export default function SalonPage() {
 
                         <div className="mt-4 text-sm text-white/50">
                             <p>Visibilité : {salon.visibility}</p>
-                            <p>Propriétaire : {salon.owner?.username || "Inconnu"}</p>
+
+                            <p>
+                                Propriétaire :{" "}
+                                {salon.owner?.username ? (
+                                    <Link
+                                        to={`/profile/${salon.owner.username}`}
+                                        className="text-fuchsia-300 hover:underline"
+                                    >
+                                        @{salon.owner.username}
+                                    </Link>
+                                ) : (
+                                    "Inconnu"
+                                )}
+                            </p>
                         </div>
                     </div>
 
@@ -339,7 +346,13 @@ export default function SalonPage() {
                                         className="flex items-center justify-between gap-4 rounded-xl bg-white/5 p-4"
                                     >
                                         <div>
-                                            <p className="font-semibold">@{friend.username}</p>
+                                            <Link
+                                                to={`/profile/${friend.username}`}
+                                                className="font-semibold hover:text-fuchsia-300"
+                                            >
+                                                @{friend.username}
+                                            </Link>
+
                                             <p className="text-sm text-white/60">
                                                 {friend.firstName} {friend.lastName}
                                             </p>
@@ -373,9 +386,17 @@ export default function SalonPage() {
                         <div className="space-y-3">
                             {salon.members.map((member) => (
                                 <div key={member.id} className="rounded-lg bg-white/5 p-3">
-                                    <p className="font-medium">
-                                        {member.user?.username || "Inconnu"}
-                                    </p>
+                                    {member.user?.username ? (
+                                        <Link
+                                            to={`/profile/${member.user.username}`}
+                                            className="font-medium hover:text-fuchsia-300"
+                                        >
+                                            @{member.user.username}
+                                        </Link>
+                                    ) : (
+                                        <p className="font-medium">Inconnu</p>
+                                    )}
+
                                     <p className="text-sm text-white/60">
                                         {member.user?.email}
                                     </p>
@@ -403,9 +424,18 @@ export default function SalonPage() {
                             {messages.map((message) => (
                                 <div key={message.id} className="rounded-lg bg-white/5 p-3">
                                     <div className="flex items-center justify-between gap-3">
-                                        <p className="font-medium text-fuchsia-300">
-                                            {message.author?.username || "Utilisateur"}
-                                        </p>
+                                        {message.author?.username ? (
+                                            <Link
+                                                to={`/profile/${message.author.username}`}
+                                                className="font-medium text-fuchsia-300 hover:underline"
+                                            >
+                                                @{message.author.username}
+                                            </Link>
+                                        ) : (
+                                            <p className="font-medium text-fuchsia-300">
+                                                Utilisateur
+                                            </p>
+                                        )}
 
                                         <p className="text-xs text-white/40">
                                             {new Date(message.createdAt).toLocaleString()}
@@ -420,14 +450,16 @@ export default function SalonPage() {
                                             className="mt-2 max-h-56 rounded-lg"
                                         />
                                     ) : (
-                                        <p className="mt-2 text-white/85">{message.content}</p>
+                                        <p className="mt-2 text-white/85">
+                                            {message.content}
+                                        </p>
                                     )}
                                 </div>
                             ))}
                         </div>
                     ) : (
                         <p className="text-white/60">
-                            Aucun message pour le moment. Sois le premier à parler, petit chef.
+                            Aucun message pour le moment. Sois le premier à parler.
                         </p>
                     )}
 
@@ -506,7 +538,7 @@ export default function SalonPage() {
                         <button
                             type="button"
                             onClick={() => void handleToggleGifPicker()}
-                            className="rounded-lg border border-white/10 bg-neutral-800 px-4 py-3 text-xl hover:border-fuchsia-400 hover:bg-neutral-700"
+                            className="rounded-lg border border-white/10 bg-neutral-800 px-4 py-3 font-semibold hover:border-fuchsia-400 hover:bg-neutral-700"
                             title="Envoyer un GIF"
                         >
                             GIF

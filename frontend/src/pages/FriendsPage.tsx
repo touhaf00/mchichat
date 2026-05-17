@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import {
     getFriendsRequest,
     getReceivedFriendRequestsRequest,
@@ -16,8 +17,11 @@ import {
     type SalonInvitation,
 } from "../features/salon-invitations/salonInvitations.api";
 import { getApiErrorMessage } from "../lib/getApiErrorMessage";
+import { useNotifications } from "../features/notifications/NotificationProvider";
 
 export default function FriendsPage() {
+    const { showToast } = useNotifications();
+
     const [query, setQuery] = useState("");
     const [users, setUsers] = useState<FriendUser[]>([]);
     const [friends, setFriends] = useState<FriendUser[]>([]);
@@ -31,6 +35,8 @@ export default function FriendsPage() {
 
     async function loadFriendData() {
         try {
+            setError("");
+
             const [friendsData, receivedData, sentData, salonInvitationsData] =
                 await Promise.all([
                     getFriendsRequest(),
@@ -50,6 +56,18 @@ export default function FriendsPage() {
 
     useEffect(() => {
         void loadFriendData();
+
+        function refreshFriends() {
+            void loadFriendData();
+        }
+
+        window.addEventListener("friends:refresh", refreshFriends);
+        window.addEventListener("salons:refresh", refreshFriends);
+
+        return () => {
+            window.removeEventListener("friends:refresh", refreshFriends);
+            window.removeEventListener("salons:refresh", refreshFriends);
+        };
     }, []);
 
     async function handleSearch(event: FormEvent<HTMLFormElement>) {
@@ -79,10 +97,12 @@ export default function FriendsPage() {
             setMessage("");
 
             const data = await sendFriendRequestRequest(receiverId);
+
             setMessage(data.message);
+            showToast(data.message);
             await loadFriendData();
         } catch (error: unknown) {
-            setError(getApiErrorMessage(error, "Erreur lors de l'envoi de la demande"));
+            showToast(getApiErrorMessage(error, "Erreur lors de l'envoi de la demande"));
         }
     }
 
@@ -92,10 +112,17 @@ export default function FriendsPage() {
             setMessage("");
 
             const data = await respondToFriendRequestRequest(requestId, status);
+
             setMessage(data.message);
+            showToast(
+                status === "ACCEPTED"
+                    ? "Demande d'ami acceptée"
+                    : "Demande d'ami refusée"
+            );
+
             await loadFriendData();
         } catch (error: unknown) {
-            setError(getApiErrorMessage(error, "Erreur lors de la réponse"));
+            showToast(getApiErrorMessage(error, "Erreur lors de la réponse"));
         }
     }
 
@@ -105,10 +132,14 @@ export default function FriendsPage() {
             setMessage("");
 
             await acceptSalonInvitationRequest(invitationId);
+
             setMessage("Invitation acceptée. Tu as rejoint le salon.");
+            showToast("Invitation salon acceptée");
             await loadFriendData();
         } catch (error: unknown) {
-            setError(getApiErrorMessage(error, "Erreur lors de l'acceptation de l'invitation"));
+            showToast(
+                getApiErrorMessage(error, "Erreur lors de l'acceptation de l'invitation")
+            );
         }
     }
 
@@ -118,24 +149,14 @@ export default function FriendsPage() {
             setMessage("");
 
             await rejectSalonInvitationRequest(invitationId);
+
             setMessage("Invitation refusée.");
+            showToast("Invitation salon refusée");
             await loadFriendData();
         } catch (error: unknown) {
-            setError(getApiErrorMessage(error, "Erreur lors du refus de l'invitation"));
+            showToast(getApiErrorMessage(error, "Erreur lors du refus de l'invitation"));
         }
     }
-
-    useEffect(() => {
-        function refreshFriends() {
-            void loadFriendData();
-        }
-
-        window.addEventListener("friends:refresh", refreshFriends);
-
-        return () => {
-            window.removeEventListener("friends:refresh", refreshFriends);
-        };
-    }, []);
 
     return (
         <section className="space-y-8">
@@ -185,7 +206,9 @@ export default function FriendsPage() {
             </form>
 
             <div className="rounded-2xl border border-white/10 bg-neutral-900 p-6">
-                <h2 className="mb-4 text-xl font-semibold">Invitations salons privés</h2>
+                <h2 className="mb-4 text-xl font-semibold">
+                    Invitations salons privés
+                </h2>
 
                 {salonInvitations.length > 0 ? (
                     <div className="space-y-3">
@@ -199,8 +222,15 @@ export default function FriendsPage() {
                                         <p className="font-semibold">
                                             {invitation.salon.name}
                                         </p>
+
                                         <p className="text-sm text-white/60">
-                                            Invité par @{invitation.sender.username}
+                                            Invité par{" "}
+                                            <Link
+                                                to={`/profile/${invitation.sender.username}`}
+                                                className="text-fuchsia-300 hover:underline"
+                                            >
+                                                @{invitation.sender.username}
+                                            </Link>
                                         </p>
                                     </div>
 
@@ -245,7 +275,13 @@ export default function FriendsPage() {
                                 className="flex items-center justify-between rounded-xl bg-white/5 p-4"
                             >
                                 <div>
-                                    <p className="font-semibold">{user.username}</p>
+                                    <Link
+                                        to={`/profile/${user.username}`}
+                                        className="font-semibold hover:text-fuchsia-300"
+                                    >
+                                        @{user.username}
+                                    </Link>
+
                                     <p className="text-sm text-white/60">
                                         {user.firstName} {user.lastName}
                                     </p>
@@ -274,7 +310,13 @@ export default function FriendsPage() {
                         <div className="space-y-3">
                             {friends.map((friend) => (
                                 <div key={friend.id} className="rounded-xl bg-white/5 p-4">
-                                    <p className="font-semibold">{friend.username}</p>
+                                    <Link
+                                        to={`/profile/${friend.username}`}
+                                        className="font-semibold hover:text-fuchsia-300"
+                                    >
+                                        @{friend.username}
+                                    </Link>
+
                                     <p className="text-sm text-white/60">
                                         {friend.firstName} {friend.lastName}
                                     </p>
@@ -293,21 +335,37 @@ export default function FriendsPage() {
                         <div className="space-y-3">
                             {receivedRequests.map((request) => (
                                 <div key={request.id} className="rounded-xl bg-white/5 p-4">
-                                    <p className="font-semibold">{request.sender?.username}</p>
+                                    {request.sender?.username ? (
+                                        <Link
+                                            to={`/profile/${request.sender.username}`}
+                                            className="font-semibold hover:text-fuchsia-300"
+                                        >
+                                            @{request.sender.username}
+                                        </Link>
+                                    ) : (
+                                        <p className="font-semibold">Utilisateur</p>
+                                    )}
+
                                     <p className="text-sm text-white/60">
                                         {request.sender?.firstName} {request.sender?.lastName}
                                     </p>
 
                                     <div className="mt-3 flex gap-2">
                                         <button
-                                            onClick={() => void handleRespond(request.id, "ACCEPTED")}
+                                            type="button"
+                                            onClick={() =>
+                                                void handleRespond(request.id, "ACCEPTED")
+                                            }
                                             className="rounded-lg bg-green-500 px-3 py-2 text-sm hover:bg-green-600"
                                         >
                                             Accepter
                                         </button>
 
                                         <button
-                                            onClick={() => void handleRespond(request.id, "REJECTED")}
+                                            type="button"
+                                            onClick={() =>
+                                                void handleRespond(request.id, "REJECTED")
+                                            }
                                             className="rounded-lg bg-red-500 px-3 py-2 text-sm hover:bg-red-600"
                                         >
                                             Refuser
@@ -328,10 +386,22 @@ export default function FriendsPage() {
                         <div className="space-y-3">
                             {sentRequests.map((request) => (
                                 <div key={request.id} className="rounded-xl bg-white/5 p-4">
-                                    <p className="font-semibold">{request.receiver?.username}</p>
+                                    {request.receiver?.username ? (
+                                        <Link
+                                            to={`/profile/${request.receiver.username}`}
+                                            className="font-semibold hover:text-fuchsia-300"
+                                        >
+                                            @{request.receiver.username}
+                                        </Link>
+                                    ) : (
+                                        <p className="font-semibold">Utilisateur</p>
+                                    )}
+
                                     <p className="text-sm text-white/60">
-                                        {request.receiver?.firstName} {request.receiver?.lastName}
+                                        {request.receiver?.firstName}{" "}
+                                        {request.receiver?.lastName}
                                     </p>
+
                                     <p className="mt-2 text-xs text-white/40">
                                         En attente
                                     </p>

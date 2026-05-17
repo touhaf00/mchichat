@@ -5,11 +5,13 @@ export type PostAuthor = {
     username: string;
     firstName: string;
     lastName: string;
+    avatarUrl?: string | null;
 };
 
 export type PostComment = {
     id: string;
-    content: string;
+    content?: string | null;
+    gifUrl?: string | null;
     postId: string;
     authorId: string;
     createdAt: string;
@@ -94,10 +96,16 @@ export async function togglePostLikeRequest(id: string) {
     return response.data;
 }
 
-export async function createPostCommentRequest(id: string, content: string) {
+export async function createPostCommentRequest(
+    id: string,
+    payload: {
+        content?: string;
+        gifUrl?: string;
+    }
+) {
     const response = await api.post<{ message: string; comment: PostComment }>(
         `/posts/${id}/comments`,
-        { content }
+        payload
     );
 
     return response.data;

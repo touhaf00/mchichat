@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../features/auth/useAuth";
 import {
     createPostCommentRequest,
@@ -10,10 +11,10 @@ import {
     type FeedPost,
 } from "../features/feed/feed.api";
 import { getWeatherRequest, type Weather } from "../features/weather/weather.api";
+import { searchGifsRequest, type GifResult } from "../features/giphy/giphy.api";
 import { getApiErrorMessage } from "../lib/getApiErrorMessage";
+import { getPublicFileUrl } from "../lib/media";
 import { useNotifications } from "../features/notifications/NotificationProvider";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 function getWeatherLabel(code: number) {
     if (code === 0) return "Ciel dégagé";
@@ -24,14 +25,6 @@ function getWeatherLabel(code: number) {
     if ([95, 96, 99].includes(code)) return "Orage";
 
     return "Météo variable";
-}
-
-function getMediaSrc(mediaUrl: string) {
-    if (mediaUrl.startsWith("http")) {
-        return mediaUrl;
-    }
-
-    return `${API_URL}${mediaUrl}`;
 }
 
 export default function FeedPage() {
@@ -46,6 +39,13 @@ export default function FeedPage() {
     const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
 
     const [commentByPostId, setCommentByPostId] = useState<Record<string, string>>({});
+    const [gifPickerPostId, setGifPickerPostId] = useState<string | null>(null);
+    const [gifSearchByPostId, setGifSearchByPostId] = useState<Record<string, string>>({});
+    const [gifsByPostId, setGifsByPostId] = useState<Record<string, GifResult[]>>({});
+    const [selectedGifByPostId, setSelectedGifByPostId] = useState<
+        Record<string, string | undefined>
+    >({});
+
     const [editingPostId, setEditingPostId] = useState<string | null>(null);
     const [editingContent, setEditingContent] = useState("");
     const [editingMedia, setEditingMedia] = useState<File | null>(null);
@@ -128,7 +128,15 @@ export default function FeedPage() {
         void loadFeed();
         void loadWeather();
 
+        function refreshFeed() {
+            void loadFeed();
+        }
+
+        window.addEventListener("feed:refresh", refreshFeed);
+
         return () => {
+            window.removeEventListener("feed:refresh", refreshFeed);
+
             if (mediaPreviewUrl) {
                 URL.revokeObjectURL(mediaPreviewUrl);
             }
@@ -179,13 +187,42 @@ export default function FeedPage() {
         }
     }
 
-    async function handleCreateComment(postId: string) {
-        const commentContent = commentByPostId[postId]?.trim();
-
-        if (!commentContent) return;
+    async function handleSearchCommentGifs(postId: string) {
+        const query = gifSearchByPostId[postId]?.trim() || "funny";
 
         try {
-            const data = await createPostCommentRequest(postId, commentContent);
+            const data = await searchGifsRequest(query);
+
+            setGifsByPostId((current) => ({
+                ...current,
+                [postId]: data.gifs,
+            }));
+        } catch (error: unknown) {
+            showToast(getApiErrorMessage(error, "Erreur GIF"));
+        }
+    }
+
+    function handleSelectCommentGif(postId: string, gifUrl: string) {
+        setSelectedGifByPostId((current) => ({
+            ...current,
+            [postId]: gifUrl,
+        }));
+    }
+
+    async function handleCreateComment(postId: string) {
+        const commentContent = commentByPostId[postId]?.trim();
+        const gifUrl = selectedGifByPostId[postId];
+
+        if (!commentContent && !gifUrl) {
+            showToast("Ajoute un commentaire ou un GIF");
+            return;
+        }
+
+        try {
+            const data = await createPostCommentRequest(postId, {
+                content: commentContent,
+                gifUrl,
+            });
 
             setPosts((current) =>
                 current.map((post) =>
@@ -203,8 +240,25 @@ export default function FeedPage() {
                 ...current,
                 [postId]: "",
             }));
-        } catch (err: unknown) {
-            showToast(getApiErrorMessage(err, "Erreur lors du commentaire"));
+
+            setSelectedGifByPostId((current) => ({
+                ...current,
+                [postId]: undefined,
+            }));
+
+            setGifsByPostId((current) => ({
+                ...current,
+                [postId]: [],
+            }));
+
+            setGifSearchByPostId((current) => ({
+                ...current,
+                [postId]: "",
+            }));
+
+            setGifPickerPostId(null);
+        } catch (error: unknown) {
+            showToast(getApiErrorMessage(error, "Erreur lors du commentaire"));
         }
     }
 
@@ -231,7 +285,10 @@ export default function FeedPage() {
     }
 
     async function handleUpdatePost(postId: string) {
-        if (!editingContent.trim()) return;
+        if (!editingContent.trim() && !editingMedia) {
+            showToast("Le post doit contenir du texte ou un média");
+            return;
+        }
 
         try {
             const data = await updatePostRequest(postId, {
@@ -289,8 +346,8 @@ export default function FeedPage() {
                             </p>
 
                             <p className="mt-1 text-sm text-white/50">
-                                Ressenti {Math.round(weather.apparentTemperature)}° ·
-                                Humidité {weather.humidity}%
+                                Ressenti {Math.round(weather.apparentTemperature)}° · Humidité{" "}
+                                {weather.humidity}%
                             </p>
                         </div>
 
@@ -316,15 +373,25 @@ export default function FeedPage() {
                 className="rounded-3xl border border-white/10 bg-neutral-900 p-6"
             >
                 <div className="mb-4 flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-fuchsia-500 font-bold">
+                    <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-fuchsia-500 font-bold">
                         {user?.firstName?.[0]}
                         {user?.lastName?.[0]}
                     </div>
 
                     <div>
-                        <p className="font-semibold">
-                            {user?.firstName} {user?.lastName}
-                        </p>
+                        {user?.username ? (
+                            <Link
+                                to={`/profile/${user.username}`}
+                                className="font-semibold hover:text-fuchsia-300"
+                            >
+                                {user.firstName} {user.lastName}
+                            </Link>
+                        ) : (
+                            <p className="font-semibold">
+                                {user?.firstName} {user?.lastName}
+                            </p>
+                        )}
+
                         <p className="text-sm text-white/50">@{user?.username}</p>
                     </div>
                 </div>
@@ -362,6 +429,7 @@ export default function FeedPage() {
                                 <p className="text-sm font-semibold text-white">
                                     {media.name}
                                 </p>
+
                                 <p className="text-xs text-white/50">
                                     {(media.size / 1024 / 1024).toFixed(2)} MB
                                 </p>
@@ -416,15 +484,28 @@ export default function FeedPage() {
                             >
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 font-bold">
-                                            {post.author.firstName[0]}
-                                            {post.author.lastName[0]}
+                                        <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-white/10 font-bold">
+                                            {post.author.avatarUrl ? (
+                                                <img
+                                                    src={getPublicFileUrl(post.author.avatarUrl)}
+                                                    alt={post.author.username}
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <>
+                                                    {post.author.firstName[0]}
+                                                    {post.author.lastName[0]}
+                                                </>
+                                            )}
                                         </div>
 
                                         <div>
-                                            <p className="font-semibold">
+                                            <Link
+                                                to={`/profile/${post.author.username}`}
+                                                className="font-semibold hover:text-fuchsia-300"
+                                            >
                                                 {post.author.firstName} {post.author.lastName}
-                                            </p>
+                                            </Link>
 
                                             <p className="text-sm text-white/50">
                                                 @{post.author.username} ·{" "}
@@ -536,14 +617,16 @@ export default function FeedPage() {
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="mt-4 whitespace-pre-wrap text-white/90">
-                                        {post.content}
-                                    </p>
+                                    post.content && (
+                                        <p className="mt-4 whitespace-pre-wrap text-white/90">
+                                            {post.content}
+                                        </p>
+                                    )
                                 )}
 
                                 {post.mediaUrl && post.mediaType?.startsWith("image/") && (
                                     <img
-                                        src={getMediaSrc(post.mediaUrl)}
+                                        src={getPublicFileUrl(post.mediaUrl)}
                                         alt="Post"
                                         className="mt-4 max-h-[520px] w-full rounded-2xl object-cover"
                                     />
@@ -551,7 +634,7 @@ export default function FeedPage() {
 
                                 {post.mediaUrl && post.mediaType?.startsWith("video/") && (
                                     <video
-                                        src={getMediaSrc(post.mediaUrl)}
+                                        src={getPublicFileUrl(post.mediaUrl)}
                                         controls
                                         className="mt-4 max-h-[520px] w-full rounded-2xl object-cover"
                                     />
@@ -583,38 +666,194 @@ export default function FeedPage() {
                                             key={comment.id}
                                             className="rounded-2xl bg-white/5 p-4"
                                         >
-                                            <p className="text-sm font-semibold">
+                                            <Link
+                                                to={`/profile/${comment.author.username}`}
+                                                className="text-sm font-semibold hover:text-fuchsia-300"
+                                            >
                                                 @{comment.author.username}
-                                            </p>
+                                            </Link>
 
-                                            <p className="mt-1 text-white/80">
-                                                {comment.content}
-                                            </p>
+                                            {comment.content && (
+                                                <p className="mt-1 text-white/80">
+                                                    {comment.content}
+                                                </p>
+                                            )}
+
+                                            {comment.gifUrl && (
+                                                <img
+                                                    src={comment.gifUrl}
+                                                    alt="GIF"
+                                                    className="mt-2 max-h-52 rounded-xl"
+                                                />
+                                            )}
                                         </div>
                                     ))}
                                 </div>
 
-                                <div className="mt-4 flex gap-3">
-                                    <input
-                                        value={commentByPostId[post.id] || ""}
-                                        onChange={(event) =>
-                                            setCommentByPostId((current) => ({
-                                                ...current,
-                                                [post.id]: event.target.value,
-                                            }))
-                                        }
-                                        placeholder="Écrire un commentaire..."
-                                        className="flex-1 rounded-xl border border-white/10 bg-neutral-800 px-4 py-3 outline-none focus:border-fuchsia-400"
-                                    />
+                                <div className="mt-4 space-y-3">
+                                    <div className="flex gap-3">
+                                        <input
+                                            value={commentByPostId[post.id] || ""}
+                                            onChange={(event) =>
+                                                setCommentByPostId((current) => ({
+                                                    ...current,
+                                                    [post.id]: event.target.value,
+                                                }))
+                                            }
+                                            placeholder="Écrire un commentaire..."
+                                            className="flex-1 rounded-xl border border-white/10 bg-neutral-800 px-4 py-3 outline-none focus:border-fuchsia-400"
+                                        />
 
-                                    <button
-                                        type="button"
-                                        onClick={() => void handleCreateComment(post.id)}
-                                        disabled={!commentByPostId[post.id]?.trim()}
-                                        className="rounded-xl bg-fuchsia-500 px-4 py-2 font-semibold hover:bg-fuchsia-600 disabled:opacity-60"
-                                    >
-                                        Envoyer
-                                    </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const nextValue =
+                                                    gifPickerPostId === post.id
+                                                        ? null
+                                                        : post.id;
+
+                                                setGifPickerPostId(nextValue);
+
+                                                if (
+                                                    nextValue === post.id &&
+                                                    !gifsByPostId[post.id]?.length
+                                                ) {
+                                                    void handleSearchCommentGifs(post.id);
+                                                }
+                                            }}
+                                            className="rounded-xl border border-white/10 bg-neutral-800 px-4 py-2 font-semibold hover:bg-neutral-700"
+                                        >
+                                            GIF
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => void handleCreateComment(post.id)}
+                                            disabled={
+                                                !commentByPostId[post.id]?.trim() &&
+                                                !selectedGifByPostId[post.id]
+                                            }
+                                            className="rounded-xl bg-fuchsia-500 px-4 py-2 font-semibold hover:bg-fuchsia-600 disabled:opacity-60"
+                                        >
+                                            Envoyer
+                                        </button>
+                                    </div>
+
+                                    {selectedGifByPostId[post.id] && (
+                                        <div className="relative inline-block">
+                                            <img
+                                                src={selectedGifByPostId[post.id]}
+                                                alt="GIF sélectionné"
+                                                className="max-h-40 rounded-xl"
+                                            />
+
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setSelectedGifByPostId((current) => ({
+                                                        ...current,
+                                                        [post.id]: undefined,
+                                                    }))
+                                                }
+                                                className="absolute right-2 top-2 rounded-lg bg-red-500 px-2 py-1 text-xs"
+                                            >
+                                                Retirer
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {gifPickerPostId === post.id && (
+                                        <div className="rounded-2xl border border-white/10 bg-neutral-950 p-4">
+                                            <div className="mb-4 flex items-center justify-between gap-3">
+                                                <h3 className="font-semibold">
+                                                    Choisir un GIF
+                                                </h3>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setGifPickerPostId(null)}
+                                                    className="rounded-lg bg-white/10 px-3 py-1 text-sm hover:bg-white/20"
+                                                >
+                                                    Fermer
+                                                </button>
+                                            </div>
+
+                                            <div className="mb-4 flex gap-3">
+                                                <input
+                                                    value={
+                                                        gifSearchByPostId[post.id] || ""
+                                                    }
+                                                    onChange={(event) =>
+                                                        setGifSearchByPostId(
+                                                            (current) => ({
+                                                                ...current,
+                                                                [post.id]:
+                                                                event.target.value,
+                                                            })
+                                                        )
+                                                    }
+                                                    onKeyDown={(event) => {
+                                                        if (event.key === "Enter") {
+                                                            event.preventDefault();
+                                                            void handleSearchCommentGifs(
+                                                                post.id
+                                                            );
+                                                        }
+                                                    }}
+                                                    placeholder="Rechercher un GIF..."
+                                                    className="flex-1 rounded-lg border border-white/10 bg-neutral-800 px-4 py-2 outline-none focus:border-fuchsia-400"
+                                                />
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        void handleSearchCommentGifs(
+                                                            post.id
+                                                        )
+                                                    }
+                                                    className="rounded-lg bg-fuchsia-500 px-4 py-2 font-medium hover:bg-fuchsia-600"
+                                                >
+                                                    OK
+                                                </button>
+                                            </div>
+
+                                            {gifsByPostId[post.id]?.length > 0 ? (
+                                                <div className="grid max-h-72 grid-cols-3 gap-2 overflow-y-auto">
+                                                    {gifsByPostId[post.id].map((gif) => (
+                                                        <button
+                                                            key={gif.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (gif.imageUrl) {
+                                                                    handleSelectCommentGif(
+                                                                        post.id,
+                                                                        gif.imageUrl
+                                                                    );
+                                                                    setGifPickerPostId(null);
+                                                                }
+                                                            }}
+                                                            className="overflow-hidden rounded-xl border border-white/10 hover:border-fuchsia-400"
+                                                        >
+                                                            {gif.imageUrl && (
+                                                                <img
+                                                                    src={gif.imageUrl}
+                                                                    alt={
+                                                                        gif.title ||
+                                                                        "GIF"
+                                                                    }
+                                                                    className="h-28 w-full object-cover"
+                                                                />
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="py-4 text-center text-white/60">
+                                                    Aucun GIF chargé.
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </article>
                         );
