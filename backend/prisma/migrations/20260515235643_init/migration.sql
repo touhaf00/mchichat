@@ -6,6 +6,9 @@ CREATE TABLE `users` (
     `passwordHash` VARCHAR(191) NOT NULL,
     `firstName` VARCHAR(191) NOT NULL,
     `lastName` VARCHAR(191) NOT NULL,
+    `bio` TEXT NULL,
+    `avatarUrl` VARCHAR(191) NULL,
+    `bannerUrl` VARCHAR(191) NULL,
     `role` ENUM('USER', 'ADMIN') NOT NULL DEFAULT 'USER',
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
@@ -167,11 +170,12 @@ CREATE TABLE `post_likes` (
 -- CreateTable
 CREATE TABLE `post_comments` (
     `id` VARCHAR(191) NOT NULL,
-    `content` TEXT NOT NULL,
+    `content` TEXT NULL,
     `postId` VARCHAR(191) NOT NULL,
     `authorId` VARCHAR(191) NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
+    `gifUrl` VARCHAR(191) NULL,
 
     INDEX `post_comments_postId_idx`(`postId`),
     INDEX `post_comments_authorId_idx`(`authorId`),

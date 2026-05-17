@@ -26,6 +26,7 @@ function postInclude() {
                 username: true,
                 firstName: true,
                 lastName: true,
+                avatarUrl: true,
             },
         },
         likes: {
@@ -44,6 +45,7 @@ function postInclude() {
                         username: true,
                         firstName: true,
                         lastName: true,
+                        avatarUrl: true,
                     },
                 },
             },
@@ -169,6 +171,8 @@ export async function togglePostLike(postId: string, userId: string) {
         },
     });
 
+    let liked = false;
+
     if (existingLike) {
         await prisma.postLike.delete({
             where: {
@@ -185,6 +189,8 @@ export async function togglePostLike(postId: string, userId: string) {
                 userId,
             },
         });
+
+        liked = true;
     }
 
     const updatedPost = await prisma.post.findUniqueOrThrow({
@@ -192,7 +198,11 @@ export async function togglePostLike(postId: string, userId: string) {
         include: postInclude(),
     });
 
-    return formatPost(updatedPost, userId);
+    return {
+        post: formatPost(updatedPost, userId),
+        liked,
+        postAuthorId: post.authorId,
+    };
 }
 
 export async function createPostComment(
@@ -208,11 +218,12 @@ export async function createPostComment(
         throw new Error("Post introuvable");
     }
 
-    return prisma.postComment.create({
+    const comment = await prisma.postComment.create({
         data: {
             postId,
             authorId: userId,
-            content: data.content,
+            content: data.content?.trim() || null,
+            gifUrl: data.gifUrl || null,
         },
         include: {
             author: {
@@ -221,8 +232,14 @@ export async function createPostComment(
                     username: true,
                     firstName: true,
                     lastName: true,
+                    avatarUrl: true,
                 },
             },
         },
     });
+
+    return {
+        comment,
+        postAuthorId: post.authorId,
+    };
 }

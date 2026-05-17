@@ -31,6 +31,9 @@ model User {
   passwordHash String
   firstName    String
   lastName     String
+  bio          String?  @db.Text
+  avatarUrl    String?
+  bannerUrl    String?
   role         UserRole @default(USER)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -247,11 +250,12 @@ model PostLike {
 
 model PostComment {
   id        String   @id @default(uuid())
-  content   String   @db.Text
+  content   String?  @db.Text
   postId    String
   authorId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  gifUrl    String?
 
   post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
