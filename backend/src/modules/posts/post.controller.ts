@@ -1,9 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { getStringParam } from "../../utils/params";
-import {
-    createCommentSchema,
-    updatePostSchema,
-} from "./post.schema";
+import { createCommentSchema, updatePostSchema } from "./post.schema";
 import {
     createPost,
     createPostComment,
@@ -12,6 +9,7 @@ import {
     togglePostLike,
     updatePost,
 } from "./post.service";
+import { getIO } from "../../lib/socket";
 
 function getUploadedPostMedia(file?: Express.Multer.File) {
     if (!file) {
@@ -161,9 +159,20 @@ export async function togglePostLikeHandler(
         }
 
         const id = getStringParam(req.params.id, "Post id");
-        const post = await togglePostLike(id, userId);
+        const result = await togglePostLike(id, userId);
 
-        return res.status(200).json({ post });
+        if (result.liked && result.postAuthorId !== userId) {
+            getIO()
+                .to(`user:${result.postAuthorId}`)
+                .emit("post_liked", {
+                    message: "Quelqu'un a aimé ton post",
+                    post: result.post,
+                });
+        }
+
+        return res.status(200).json({
+            post: result.post,
+        });
     } catch (error) {
         next(error);
     }
@@ -184,11 +193,20 @@ export async function createPostCommentHandler(
         const id = getStringParam(req.params.id, "Post id");
         const data = createCommentSchema.parse(req.body);
 
-        const comment = await createPostComment(id, userId, data);
+        const result = await createPostComment(id, userId, data);
+
+        if (result.postAuthorId !== userId) {
+            getIO()
+                .to(`user:${result.postAuthorId}`)
+                .emit("post_commented", {
+                    message: "Quelqu'un a commenté ton post",
+                    comment: result.comment,
+                });
+        }
 
         return res.status(201).json({
             message: "Commentaire ajouté",
-            comment,
+            comment: result.comment,
         });
     } catch (error) {
         next(error);
