@@ -68,6 +68,16 @@ export function SocketNotifications() {
             window.dispatchEvent(new Event("salons:refresh"));
         });
 
+        socket.on("post_liked", () => {
+            showToast("Quelqu'un a aimé ton post");
+            window.dispatchEvent(new Event("feed:refresh"));
+        });
+
+        socket.on("post_commented", () => {
+            showToast("Quelqu'un a commenté ton post");
+            window.dispatchEvent(new Event("feed:refresh"));
+        });
+
         return () => {
             socket.off("friend_request_received");
             socket.off("salon_invitation_received");
@@ -76,6 +86,8 @@ export function SocketNotifications() {
             socket.off("private_message_notification");
             socket.off("friend_request_accepted");
             socket.off("salon_membership_request_accepted");
+            socket.off("post_liked");
+            socket.off("post_commented");
         };
     }, [
         user?.id,

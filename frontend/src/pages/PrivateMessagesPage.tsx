@@ -6,6 +6,7 @@ import {
     useState,
     type FormEvent,
 } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
     getFriendsRequest,
     type FriendUser,
@@ -40,13 +41,18 @@ function getOtherParticipant(
 export default function PrivateMessagesPage() {
     const { user } = useAuth();
     const { counts, resetConversation } = useNotifications();
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    const conversationIdFromUrl = searchParams.get("conversationId");
 
     const messagesContainerRef = useRef<HTMLDivElement | null>(null);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
     const [friends, setFriends] = useState<FriendUser[]>([]);
     const [conversations, setConversations] = useState<PrivateConversation[]>([]);
-    const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+    const [selectedConversationId, setSelectedConversationId] = useState<string | null>(
+        conversationIdFromUrl
+    );
 
     const [messages, setMessages] = useState<PrivateMessage[]>([]);
     const [content, setContent] = useState("");
@@ -85,6 +91,17 @@ export default function PrivateMessagesPage() {
         ? getOtherParticipant(selectedConversation, user?.id)
         : null;
 
+    const selectConversation = useCallback(
+        (conversationId: string) => {
+            setSelectedConversationId(conversationId);
+            setSearchParams({ conversationId });
+            setShowGifPicker(false);
+            setUnreadMessagesCount(0);
+            resetConversation(conversationId);
+        },
+        [resetConversation, setSearchParams]
+    );
+
     const loadConversations = useCallback(async () => {
         try {
             setIsLoadingConversations(true);
@@ -98,6 +115,16 @@ export default function PrivateMessagesPage() {
             setConversations(conversationsData.conversations);
             setFriends(friendsData.friends);
 
+            const conversationFromUrl = conversationsData.conversations.find(
+                (conversation) => conversation.id === conversationIdFromUrl
+            );
+
+            if (conversationFromUrl) {
+                setSelectedConversationId(conversationFromUrl.id);
+                resetConversation(conversationFromUrl.id);
+                return;
+            }
+
             if (!selectedConversationId && conversationsData.conversations.length > 0) {
                 setSelectedConversationId(conversationsData.conversations[0].id);
             }
@@ -108,7 +135,7 @@ export default function PrivateMessagesPage() {
         } finally {
             setIsLoadingConversations(false);
         }
-    }, [selectedConversationId]);
+    }, [conversationIdFromUrl, selectedConversationId, resetConversation]);
 
     const loadMessages = useCallback(async () => {
         if (!selectedConversationId) {
@@ -120,9 +147,16 @@ export default function PrivateMessagesPage() {
             setIsLoadingMessages(true);
             setMessageError("");
             setUnreadMessagesCount(0);
+            resetConversation(selectedConversationId);
 
             const data = await getPrivateMessagesRequest(selectedConversationId);
             setMessages(data.messages);
+
+            window.setTimeout(() => {
+                messagesContainerRef.current?.scrollTo({
+                    top: messagesContainerRef.current.scrollHeight,
+                });
+            }, 50);
         } catch (error: unknown) {
             setMessageError(
                 getApiErrorMessage(error, "Erreur lors du chargement des messages")
@@ -130,7 +164,7 @@ export default function PrivateMessagesPage() {
         } finally {
             setIsLoadingMessages(false);
         }
-    }, [selectedConversationId]);
+    }, [selectedConversationId, resetConversation]);
 
     const handleSearchGifs = useCallback(async (search = "funny") => {
         try {
@@ -157,6 +191,13 @@ export default function PrivateMessagesPage() {
     }, [loadMessages]);
 
     useEffect(() => {
+        if (conversationIdFromUrl && conversationIdFromUrl !== selectedConversationId) {
+            setSelectedConversationId(conversationIdFromUrl);
+            resetConversation(conversationIdFromUrl);
+        }
+    }, [conversationIdFromUrl, selectedConversationId, resetConversation]);
+
+    useEffect(() => {
         if (!selectedConversationId) return;
 
         resetConversation(selectedConversationId);
@@ -180,19 +221,24 @@ export default function PrivateMessagesPage() {
                     (message) => message.id === newMessage.id
                 );
 
-                if (alreadyExists) {
-                    return currentMessages;
-                }
+                if (alreadyExists) return currentMessages;
 
                 return [...currentMessages, newMessage];
             });
 
-            const isMine = newMessage.authorId === user?.id;
-
             resetConversation(selectedConversationId);
+
+            const isMine = newMessage.authorId === user?.id;
 
             if (!isMine && !isScrolledToBottom()) {
                 setUnreadMessagesCount((count) => count + 1);
+            } else {
+                window.setTimeout(() => {
+                    messagesContainerRef.current?.scrollTo({
+                        top: messagesContainerRef.current.scrollHeight,
+                        behavior: "smooth",
+                    });
+                }, 50);
             }
         });
 
@@ -200,7 +246,7 @@ export default function PrivateMessagesPage() {
             socket.emit("leave_private_conversation", selectedConversationId);
             socket.off("private_message_created");
         };
-    }, [selectedConversationId, user?.id]);
+    }, [selectedConversationId, user?.id, resetConversation]);
 
     async function handleStartConversation(friendId: string) {
         try {
@@ -210,7 +256,7 @@ export default function PrivateMessagesPage() {
             const data = await createPrivateConversationRequest(friendId);
 
             await loadConversations();
-            setSelectedConversationId(data.conversation.id);
+            selectConversation(data.conversation.id);
         } catch (error: unknown) {
             setError(
                 getApiErrorMessage(error, "Erreur lors de la création de conversation")
@@ -263,6 +309,8 @@ export default function PrivateMessagesPage() {
 
             setShowGifPicker(false);
             setGifSearch("");
+            resetConversation(selectedConversationId);
+            setUnreadMessagesCount(0);
             await loadConversations();
         } catch (error: unknown) {
             setMessageError(
@@ -325,19 +373,15 @@ export default function PrivateMessagesPage() {
                                 const otherUser = getOtherParticipant(conversation, user?.id);
                                 const lastMessage = conversation.messages?.[0];
 
-                                const unreadCount = counts.messagesByConversationId[conversation.id] || 0;
+                                const unreadCount =
+                                    counts.messagesByConversationId[conversation.id] || 0;
                                 const hasUnread = unreadCount > 0;
 
                                 return (
                                     <button
                                         key={conversation.id}
                                         type="button"
-                                        onClick={() => {
-                                            setSelectedConversationId(conversation.id);
-                                            setShowGifPicker(false);
-                                            setUnreadMessagesCount(0);
-                                            resetConversation(conversation.id);
-                                        }}
+                                        onClick={() => selectConversation(conversation.id)}
                                         className={`w-full rounded-xl p-3 text-left transition ${
                                             selectedConversationId === conversation.id
                                                 ? "bg-fuchsia-500/20 ring-1 ring-fuchsia-400"
@@ -352,10 +396,9 @@ export default function PrivateMessagesPage() {
                                             </p>
 
                                             {hasUnread && (
-                                                <span
-                                                    className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
-            {unreadCount > 99 ? "99+" : unreadCount}
-        </span>
+                                                <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
+                                                    {unreadCount > 99 ? "99+" : unreadCount}
+                                                </span>
                                             )}
                                         </div>
 
@@ -386,7 +429,14 @@ export default function PrivateMessagesPage() {
                                     onClick={() => void handleStartConversation(friend.id)}
                                     className="w-full rounded-xl bg-white/5 p-3 text-left hover:bg-white/10 disabled:opacity-60"
                                 >
-                                    <p className="font-semibold">{friend.username}</p>
+                                    <Link
+                                        to={`/profile/${friend.username}`}
+                                        onClick={(event) => event.stopPropagation()}
+                                        className="font-semibold hover:text-fuchsia-300"
+                                    >
+                                        @{friend.username}
+                                    </Link>
+
                                     <p className="text-sm text-white/50">
                                         {friend.firstName} {friend.lastName}
                                     </p>
@@ -405,9 +455,17 @@ export default function PrivateMessagesPage() {
                 {selectedConversationId ? (
                     <div className="flex h-full min-h-[650px] flex-col">
                         <div className="border-b border-white/10 pb-4">
-                            <h2 className="text-2xl font-bold">
-                                {selectedFriend?.username || "Conversation"}
-                            </h2>
+                            {selectedFriend?.username ? (
+                                <Link
+                                    to={`/profile/${selectedFriend.username}`}
+                                    className="text-2xl font-bold hover:text-fuchsia-300"
+                                >
+                                    @{selectedFriend.username}
+                                </Link>
+                            ) : (
+                                <h2 className="text-2xl font-bold">Conversation</h2>
+                            )}
+
                             {selectedFriend && (
                                 <p className="text-sm text-white/60">
                                     {selectedFriend.firstName} {selectedFriend.lastName}
@@ -426,6 +484,10 @@ export default function PrivateMessagesPage() {
                             onScroll={() => {
                                 if (isScrolledToBottom()) {
                                     setUnreadMessagesCount(0);
+
+                                    if (selectedConversationId) {
+                                        resetConversation(selectedConversationId);
+                                    }
                                 }
                             }}
                             className="mt-4 flex-1 space-y-3 overflow-y-auto pr-2"
@@ -451,18 +513,26 @@ export default function PrivateMessagesPage() {
                                                 }`}
                                             >
                                                 <div className="mb-1 flex items-center justify-between gap-3">
-                                                    <span className="text-xs opacity-80">
-                                                        {message.author?.username}
-                                                    </span>
+                                                    {message.author?.username ? (
+                                                        <Link
+                                                            to={`/profile/${message.author.username}`}
+                                                            className="text-xs opacity-90 hover:underline"
+                                                        >
+                                                            @{message.author.username}
+                                                        </Link>
+                                                    ) : (
+                                                        <span className="text-xs opacity-80">
+                                                            Utilisateur
+                                                        </span>
+                                                    )}
 
                                                     <span className="text-xs opacity-60">
-                                                        {new Date(message.createdAt).toLocaleTimeString(
-                                                            [],
-                                                            {
-                                                                hour: "2-digit",
-                                                                minute: "2-digit",
-                                                            }
-                                                        )}
+                                                        {new Date(
+                                                            message.createdAt
+                                                        ).toLocaleTimeString([], {
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                        })}
                                                     </span>
                                                 </div>
 
@@ -483,7 +553,9 @@ export default function PrivateMessagesPage() {
                                                 {isMine && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => void handleDeleteMessage(message.id)}
+                                                        onClick={() =>
+                                                            void handleDeleteMessage(message.id)
+                                                        }
                                                         className="mt-2 text-xs opacity-70 hover:opacity-100"
                                                     >
                                                         Supprimer
@@ -509,6 +581,7 @@ export default function PrivateMessagesPage() {
                                         behavior: "smooth",
                                     });
                                     setUnreadMessagesCount(0);
+                                    resetConversation(selectedConversationId);
                                 }}
                                 className="mx-auto mt-3 rounded-full bg-fuchsia-500 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-600"
                             >
@@ -535,7 +608,9 @@ export default function PrivateMessagesPage() {
                                     <div className="mb-4 flex gap-3">
                                         <input
                                             value={gifSearch}
-                                            onChange={(event) => setGifSearch(event.target.value)}
+                                            onChange={(event) =>
+                                                setGifSearch(event.target.value)
+                                            }
                                             onKeyDown={(event) => {
                                                 if (event.key === "Enter") {
                                                     event.preventDefault();
