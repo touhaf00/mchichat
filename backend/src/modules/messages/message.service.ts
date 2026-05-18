@@ -1,5 +1,15 @@
 import { prisma } from "../../lib/prisma";
 
+type CreateMessageData = {
+    salonId: string;
+    authorId: string;
+    content?: string | null;
+    attachmentUrl?: string | null;
+    attachmentType?: string | null;
+    attachmentName?: string | null;
+    attachmentSize?: number | null;
+};
+
 export async function getMessagesBySalon(salonId: string, userId: string) {
     await canAccessSalon(salonId, userId);
 
@@ -16,28 +26,31 @@ export async function getMessagesBySalon(salonId: string, userId: string) {
                     id: true,
                     username: true,
                     email: true,
+                    firstName: true,
+                    lastName: true,
+                    avatarUrl: true,
                 },
             },
         },
     });
 }
 
-export async function createMessage({
-                                        salonId,
-                                        authorId,
-                                        content,
-                                    }: {
-    salonId: string;
-    authorId: string;
-    content: string;
-}) {
-    await canAccessSalon(salonId, authorId);
+export async function createMessage(data: CreateMessageData) {
+    await canAccessSalon(data.salonId, data.authorId);
+
+    if (!data.content?.trim() && !data.attachmentUrl) {
+        throw new Error("Le message doit contenir du texte ou un fichier");
+    }
 
     return prisma.message.create({
         data: {
-            salonId,
-            authorId,
-            content,
+            salonId: data.salonId,
+            authorId: data.authorId,
+            content: data.content?.trim() || "",
+            attachmentUrl: data.attachmentUrl ?? null,
+            attachmentType: data.attachmentType ?? null,
+            attachmentName: data.attachmentName ?? null,
+            attachmentSize: data.attachmentSize ?? null,
         },
         include: {
             author: {
@@ -45,6 +58,9 @@ export async function createMessage({
                     id: true,
                     username: true,
                     email: true,
+                    firstName: true,
+                    lastName: true,
+                    avatarUrl: true,
                 },
             },
         },
@@ -68,17 +84,24 @@ export async function updateMessage(
         throw new Error("Non autorisé");
     }
 
-    await canAccessSalon(message.salonId, userId);
+    if (!content.trim()) {
+        throw new Error("Le message ne peut pas être vide");
+    }
 
     return prisma.message.update({
         where: { id: messageId },
-        data: { content },
+        data: {
+            content: content.trim(),
+        },
         include: {
             author: {
                 select: {
                     id: true,
                     username: true,
                     email: true,
+                    firstName: true,
+                    lastName: true,
+                    avatarUrl: true,
                 },
             },
         },

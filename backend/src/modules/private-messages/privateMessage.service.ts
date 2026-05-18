@@ -1,8 +1,15 @@
 import { prisma } from "../../lib/prisma";
-import {
+import type {
     CreatePrivateConversationInput,
     CreatePrivateMessageInput,
 } from "./privateMessage.schema";
+
+type CreatePrivateMessageData = CreatePrivateMessageInput & {
+    attachmentUrl?: string | null;
+    attachmentType?: string | null;
+    attachmentName?: string | null;
+    attachmentSize?: number | null;
+};
 
 async function areFriends(userId: string, friendId: string) {
     const friendship = await prisma.friendship.findFirst({
@@ -24,10 +31,7 @@ async function areFriends(userId: string, friendId: string) {
     return Boolean(friendship);
 }
 
-async function isConversationParticipant(
-    conversationId: string,
-    userId: string
-) {
+async function isConversationParticipant(conversationId: string, userId: string) {
     const participant = await prisma.privateConversationParticipant.findUnique({
         where: {
             conversationId_userId: {
@@ -59,6 +63,7 @@ export async function getPrivateConversations(userId: string) {
                             firstName: true,
                             lastName: true,
                             email: true,
+                            avatarUrl: true,
                         },
                     },
                 },
@@ -73,6 +78,9 @@ export async function getPrivateConversations(userId: string) {
                         select: {
                             id: true,
                             username: true,
+                            firstName: true,
+                            lastName: true,
+                            avatarUrl: true,
                         },
                     },
                 },
@@ -137,6 +145,7 @@ export async function createPrivateConversation(
                             firstName: true,
                             lastName: true,
                             email: true,
+                            avatarUrl: true,
                         },
                     },
                 },
@@ -145,6 +154,17 @@ export async function createPrivateConversation(
                 take: 1,
                 orderBy: {
                     createdAt: "desc",
+                },
+                include: {
+                    author: {
+                        select: {
+                            id: true,
+                            username: true,
+                            firstName: true,
+                            lastName: true,
+                            avatarUrl: true,
+                        },
+                    },
                 },
             },
         },
@@ -177,11 +197,28 @@ export async function createPrivateConversation(
                             firstName: true,
                             lastName: true,
                             email: true,
+                            avatarUrl: true,
                         },
                     },
                 },
             },
-            messages: true,
+            messages: {
+                take: 1,
+                orderBy: {
+                    createdAt: "desc",
+                },
+                include: {
+                    author: {
+                        select: {
+                            id: true,
+                            username: true,
+                            firstName: true,
+                            lastName: true,
+                            avatarUrl: true,
+                        },
+                    },
+                },
+            },
         },
     });
 }
@@ -207,6 +244,7 @@ export async function getPrivateMessages(
                     username: true,
                     firstName: true,
                     lastName: true,
+                    avatarUrl: true,
                 },
             },
         },
@@ -219,7 +257,7 @@ export async function getPrivateMessages(
 export async function createPrivateMessage(
     conversationId: string,
     userId: string,
-    data: CreatePrivateMessageInput
+    data: CreatePrivateMessageData
 ) {
     const canAccess = await isConversationParticipant(conversationId, userId);
 
@@ -227,10 +265,18 @@ export async function createPrivateMessage(
         throw new Error("Vous n'êtes pas autorisé à écrire dans cette conversation");
     }
 
+    if (!data.content?.trim() && !data.gifUrl && !data.attachmentUrl) {
+        throw new Error("Le message doit contenir du texte, un GIF ou un fichier");
+    }
+
     const message = await prisma.privateMessage.create({
         data: {
-            content: data.content || null,
+            content: data.content?.trim() || null,
             gifUrl: data.gifUrl || null,
+            attachmentUrl: data.attachmentUrl ?? null,
+            attachmentType: data.attachmentType ?? null,
+            attachmentName: data.attachmentName ?? null,
+            attachmentSize: data.attachmentSize ?? null,
             conversationId,
             authorId: userId,
         },
@@ -241,6 +287,7 @@ export async function createPrivateMessage(
                     username: true,
                     firstName: true,
                     lastName: true,
+                    avatarUrl: true,
                 },
             },
         },
