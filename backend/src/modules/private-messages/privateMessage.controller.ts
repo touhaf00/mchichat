@@ -12,6 +12,76 @@ import {
     getPrivateMessages,
 } from "./privateMessage.service";
 import { getIO } from "../../lib/socket";
+import fs from "fs";
+import { convertAudioToMp3 } from "../../utils/convertAudio";
+
+function getUploadedAttachment(file?: Express.Multer.File) {
+    if (!file) {
+        return {
+            attachmentUrl: null,
+            attachmentType: null,
+            attachmentName: null,
+            attachmentSize: null,
+        };
+    }
+
+    let attachmentType = file.mimetype || "";
+    const lowerName = file.originalname.toLowerCase();
+
+    if (
+        lowerName.endsWith(".webm") ||
+        attachmentType.includes("webm")
+    ) {
+        attachmentType = "audio/webm";
+    }
+
+    else if (
+        lowerName.endsWith(".m4a") ||
+        lowerName.endsWith(".mp4") ||
+        attachmentType.includes("mp4")
+    ) {
+        attachmentType = "audio/mp4";
+    }
+
+    else if (
+        lowerName.endsWith(".aac") ||
+        attachmentType.includes("aac")
+    ) {
+        attachmentType = "audio/aac";
+    }
+
+    else if (
+        lowerName.endsWith(".ogg") ||
+        attachmentType.includes("ogg")
+    ) {
+        attachmentType = "audio/ogg";
+    }
+
+    else if (
+        lowerName.endsWith(".mp3") ||
+        attachmentType.includes("mpeg")
+    ) {
+        attachmentType = "audio/mpeg";
+    }
+
+    if (
+        attachmentType === "application/octet-stream" ||
+        !attachmentType
+    ) {
+        if (lowerName.endsWith(".webm")) attachmentType = "audio/webm";
+        if (lowerName.endsWith(".ogg")) attachmentType = "audio/ogg";
+        if (lowerName.endsWith(".mp3")) attachmentType = "audio/mpeg";
+        if (lowerName.endsWith(".wav")) attachmentType = "audio/wav";
+        if (lowerName.endsWith(".m4a")) attachmentType = "audio/mp4";
+    }
+
+    return {
+        attachmentUrl: `/uploads/messages/${file.filename}`,
+        attachmentType,
+        attachmentName: file.originalname,
+        attachmentSize: file.size,
+    };
+}
 
 export async function getPrivateConversationsHandler(
     req: Request,
@@ -29,7 +99,7 @@ export async function getPrivateConversationsHandler(
 
         const conversations = await getPrivateConversations(userId);
 
-        res.status(200).json({
+        return res.status(200).json({
             conversations,
         });
     } catch (error) {
@@ -54,7 +124,7 @@ export async function createPrivateConversationHandler(
         const data = createPrivateConversationSchema.parse(req.body);
         const conversation = await createPrivateConversation(userId, data);
 
-        res.status(201).json({
+        return res.status(201).json({
             message: "Conversation privée prête",
             conversation,
         });
@@ -80,7 +150,7 @@ export async function getPrivateMessagesHandler(
         const id = getStringParam(req.params.id, "Conversation id");
         const messages = await getPrivateMessages(id, userId);
 
-        res.status(200).json({
+        return res.status(200).json({
             messages,
         });
     } catch (error) {
@@ -103,16 +173,61 @@ export async function createPrivateMessageHandler(
         }
 
         const id = getStringParam(req.params.id, "Conversation id");
-        const data = createPrivateMessageSchema.parse(req.body);
 
-        const message = await createPrivateMessage(id, userId, data);
+        const content =
+            typeof req.body.content === "string" ? req.body.content.trim() : undefined;
+
+        const gifUrl =
+            typeof req.body.gifUrl === "string" ? req.body.gifUrl : undefined;
+
+        let uploadedFile = req.file;
+
+        if (uploadedFile?.mimetype.startsWith("audio/")) {
+            const originalPath = uploadedFile.path;
+            const converted = await convertAudioToMp3(originalPath);
+
+            if (converted.outputPath !== originalPath) {
+                fs.unlinkSync(originalPath);
+            }
+
+            uploadedFile = {
+                ...uploadedFile,
+                path: converted.outputPath,
+                filename: converted.filename,
+                originalname: converted.filename,
+                mimetype: "audio/mpeg",
+            };
+        }
+
+        const attachment = getUploadedAttachment(uploadedFile);
+
+        const data = createPrivateMessageSchema.parse({
+            content,
+            gifUrl,
+            attachmentUrl: attachment.attachmentUrl,
+        });
+
+        if (!content && !gifUrl && !attachment.attachmentUrl) {
+            return res.status(400).json({
+                message: "Le message doit contenir du texte, un GIF ou un fichier",
+            });
+        }
+
+        const message = await createPrivateMessage(id, userId, {
+            content: data.content,
+            gifUrl: data.gifUrl,
+            attachmentUrl: attachment.attachmentUrl,
+            attachmentType: attachment.attachmentType,
+            attachmentName: attachment.attachmentName,
+            attachmentSize: attachment.attachmentSize,
+        });
 
         getIO()
             .to(`private:${id}`)
             .emit("private_message_created", message);
 
-        const conversation = await getPrivateConversations(userId);
-        const currentConversation = conversation.find((item) => item.id === id);
+        const conversations = await getPrivateConversations(userId);
+        const currentConversation = conversations.find((item) => item.id === id);
 
         const receiver = currentConversation?.participants.find(
             (participant) => participant.userId !== userId
@@ -128,7 +243,7 @@ export async function createPrivateMessageHandler(
                 });
         }
 
-        res.status(201).json({
+        return res.status(201).json({
             message,
         });
     } catch (error) {
@@ -153,9 +268,8 @@ export async function deletePrivateMessageHandler(
         const id = getStringParam(req.params.id, "Private message id");
         const result = await deletePrivateMessage(id, userId);
 
-        res.status(200).json(result);
+        return res.status(200).json(result);
     } catch (error) {
         next(error);
     }
 }
-

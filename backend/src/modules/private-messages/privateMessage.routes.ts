@@ -7,6 +7,7 @@ import {
     getPrivateConversationsHandler,
     getPrivateMessagesHandler,
 } from "./privateMessage.controller";
+import { uploadMessageAttachment } from "../../middlewares/messageUpload.middleware";
 
 const privateMessageRouter = Router();
 
@@ -31,6 +32,7 @@ privateMessageRouter.get(
 privateMessageRouter.post(
     "/private-conversations/:id/messages",
     authenticate,
+    uploadMessageAttachment.single("attachment"),
     createPrivateMessageHandler
 );
 
