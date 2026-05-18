@@ -26,6 +26,16 @@ import { useAuth } from "../features/auth/useAuth";
 import { getApiErrorMessage } from "../lib/getApiErrorMessage";
 import { socket } from "../lib/socket";
 import { useNotifications } from "../features/notifications/NotificationProvider";
+import { getPublicFileUrl } from "../lib/media";
+import { startVoiceRecording, stopVoiceRecording, cancelVoiceRecording } from "../lib/voiceRecorder";
+import { VoiceRecorderBar } from "../features/voice/VoiceRecorderBar";
+import { AudioMessagePlayer } from "../features/voice/AudioMessagePlayer";
+
+function formatFileSize(size?: number | null) {
+    if (!size) return "";
+    if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+    return `${(size / 1024 / 1024).toFixed(2)} MB`;
+}
 
 function getOtherParticipant(
     conversation: PrivateConversation,
@@ -38,15 +48,71 @@ function getOtherParticipant(
     return participant?.user ?? null;
 }
 
+function MessageAttachment({ message }: { message: PrivateMessage }) {
+    if (!message.attachmentUrl) return null;
+
+    const url = getPublicFileUrl(message.attachmentUrl);
+    const type = message.attachmentType || "";
+    const name = message.attachmentName?.toLowerCase() || "";
+
+    const isAudio =
+        type.startsWith("audio/") ||
+        name.endsWith(".webm") ||
+        name.endsWith(".ogg") ||
+        name.endsWith(".mp3") ||
+        name.endsWith(".wav") ||
+        name.endsWith(".m4a");
+
+    if (type.startsWith("image/")) {
+        return (
+            <img
+                src={url}
+                alt={message.attachmentName || "Image"}
+                className="mt-2 max-h-72 rounded-xl"
+            />
+        );
+    }
+
+    if (type.startsWith("video/")) {
+        return (
+            <video
+                src={url}
+                controls
+                className="mt-2 max-h-72 rounded-xl"
+            />
+        );
+    }
+
+    if (isAudio) {
+        return (
+            <AudioMessagePlayer
+                src={url}
+                mimeType={message.attachmentType}
+            />
+        );
+    }
+
+    return (
+        <a
+            href={url}
+            download={message.attachmentName || true}
+            className="mt-2 block rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm hover:bg-white/10"
+        >
+            Télécharger {message.attachmentName || "le fichier"}
+            {message.attachmentSize ? ` · ${formatFileSize(message.attachmentSize)}` : ""}
+        </a>
+    );
+}
+
 export default function PrivateMessagesPage() {
     const { user } = useAuth();
-    const { counts, resetConversation } = useNotifications();
+    const { counts, resetConversation, showToast } = useNotifications();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const conversationIdFromUrl = searchParams.get("conversationId");
 
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
     const messagesContainerRef = useRef<HTMLDivElement | null>(null);
-    const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
     const [friends, setFriends] = useState<FriendUser[]>([]);
     const [conversations, setConversations] = useState<PrivateConversation[]>([]);
@@ -56,6 +122,14 @@ export default function PrivateMessagesPage() {
 
     const [messages, setMessages] = useState<PrivateMessage[]>([]);
     const [content, setContent] = useState("");
+
+    const [attachment, setAttachment] = useState<File | Blob | null>(null);
+    const [attachmentName, setAttachmentName] = useState("");
+    const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
+    const [attachmentType, setAttachmentType] = useState("");
+
+    const [isRecording, setIsRecording] = useState(false);
+    const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
     const [showGifPicker, setShowGifPicker] = useState(false);
     const [gifSearch, setGifSearch] = useState("");
@@ -70,6 +144,29 @@ export default function PrivateMessagesPage() {
     const [error, setError] = useState("");
     const [messageError, setMessageError] = useState("");
 
+    const [recordingSeconds, setRecordingSeconds] = useState(0);
+    const [voiceLevels, setVoiceLevels] = useState<number[]>(
+        Array.from({ length: 28 }, () => 10)
+    );
+
+    const selectedConversation = useMemo(() => {
+        return conversations.find(
+            (conversation) => conversation.id === selectedConversationId
+        );
+    }, [conversations, selectedConversationId]);
+
+    const selectedFriend = selectedConversation
+        ? getOtherParticipant(selectedConversation, user?.id)
+        : null;
+
+    const friendsWithoutConversation = friends.filter((friend) => {
+        return !conversations.some((conversation) =>
+            conversation.participants.some(
+                (participant) => participant.userId === friend.id
+            )
+        );
+    });
+
     function isScrolledToBottom() {
         const element = messagesContainerRef.current;
 
@@ -81,15 +178,38 @@ export default function PrivateMessagesPage() {
         return distanceFromBottom < 80;
     }
 
-    const selectedConversation = useMemo(() => {
-        return conversations.find(
-            (conversation) => conversation.id === selectedConversationId
-        );
-    }, [conversations, selectedConversationId]);
+    function scrollToBottom(behavior: ScrollBehavior = "smooth") {
+        window.setTimeout(() => {
+            messagesContainerRef.current?.scrollTo({
+                top: messagesContainerRef.current.scrollHeight,
+                behavior,
+            });
+        }, 50);
+    }
 
-    const selectedFriend = selectedConversation
-        ? getOtherParticipant(selectedConversation, user?.id)
-        : null;
+    function clearAttachment() {
+        if (attachmentPreviewUrl) {
+            URL.revokeObjectURL(attachmentPreviewUrl);
+        }
+
+        setAttachment(null);
+        setAttachmentName("");
+        setAttachmentPreviewUrl(null);
+        setAttachmentType("");
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    }
+
+    function setSelectedAttachment(file: File | Blob, name: string, type: string) {
+        clearAttachment();
+
+        setAttachment(file);
+        setAttachmentName(name);
+        setAttachmentType(type || "application/octet-stream");
+        setAttachmentPreviewUrl(URL.createObjectURL(file));
+    }
 
     const selectConversation = useCallback(
         (conversationId: string) => {
@@ -128,9 +248,9 @@ export default function PrivateMessagesPage() {
             if (!selectedConversationId && conversationsData.conversations.length > 0) {
                 setSelectedConversationId(conversationsData.conversations[0].id);
             }
-        } catch (error: unknown) {
+        } catch (err: unknown) {
             setError(
-                getApiErrorMessage(error, "Erreur lors du chargement des conversations")
+                getApiErrorMessage(err, "Erreur lors du chargement des conversations")
             );
         } finally {
             setIsLoadingConversations(false);
@@ -151,15 +271,10 @@ export default function PrivateMessagesPage() {
 
             const data = await getPrivateMessagesRequest(selectedConversationId);
             setMessages(data.messages);
-
-            window.setTimeout(() => {
-                messagesContainerRef.current?.scrollTo({
-                    top: messagesContainerRef.current.scrollHeight,
-                });
-            }, 50);
-        } catch (error: unknown) {
+            scrollToBottom("auto");
+        } catch (err: unknown) {
             setMessageError(
-                getApiErrorMessage(error, "Erreur lors du chargement des messages")
+                getApiErrorMessage(err, "Erreur lors du chargement des messages")
             );
         } finally {
             setIsLoadingMessages(false);
@@ -173,9 +288,9 @@ export default function PrivateMessagesPage() {
 
             const data = await searchGifsRequest(search.trim() || "funny");
             setGifs(data.gifs);
-        } catch (error: unknown) {
+        } catch (err: unknown) {
             setMessageError(
-                getApiErrorMessage(error, "Erreur lors du chargement des GIFs")
+                getApiErrorMessage(err, "Erreur lors du chargement des GIFs")
             );
         } finally {
             setIsLoadingGifs(false);
@@ -196,12 +311,6 @@ export default function PrivateMessagesPage() {
             resetConversation(conversationIdFromUrl);
         }
     }, [conversationIdFromUrl, selectedConversationId, resetConversation]);
-
-    useEffect(() => {
-        if (!selectedConversationId) return;
-
-        resetConversation(selectedConversationId);
-    }, [selectedConversationId, resetConversation]);
 
     useEffect(() => {
         if (showGifPicker && gifs.length === 0) {
@@ -233,12 +342,7 @@ export default function PrivateMessagesPage() {
             if (!isMine && !isScrolledToBottom()) {
                 setUnreadMessagesCount((count) => count + 1);
             } else {
-                window.setTimeout(() => {
-                    messagesContainerRef.current?.scrollTo({
-                        top: messagesContainerRef.current.scrollHeight,
-                        behavior: "smooth",
-                    });
-                }, 50);
+                scrollToBottom();
             }
         });
 
@@ -247,6 +351,14 @@ export default function PrivateMessagesPage() {
             socket.off("private_message_created");
         };
     }, [selectedConversationId, user?.id, resetConversation]);
+
+    useEffect(() => {
+        return () => {
+            if (attachmentPreviewUrl) {
+                URL.revokeObjectURL(attachmentPreviewUrl);
+            }
+        };
+    }, [attachmentPreviewUrl]);
 
     async function handleStartConversation(friendId: string) {
         try {
@@ -257,9 +369,9 @@ export default function PrivateMessagesPage() {
 
             await loadConversations();
             selectConversation(data.conversation.id);
-        } catch (error: unknown) {
+        } catch (err: unknown) {
             setError(
-                getApiErrorMessage(error, "Erreur lors de la création de conversation")
+                getApiErrorMessage(err, "Erreur lors de la création de conversation")
             );
         } finally {
             setIsStartingConversation(false);
@@ -273,23 +385,30 @@ export default function PrivateMessagesPage() {
 
         const trimmedContent = content.trim();
 
-        if (!trimmedContent) return;
+        if (!trimmedContent && !attachment) {
+            showToast("Ajoute un message ou une pièce jointe");
+            return;
+        }
 
         try {
             setIsSending(true);
             setMessageError("");
 
             await sendPrivateMessageRequest(selectedConversationId, {
-                content: trimmedContent,
+                content: trimmedContent || undefined,
+                attachment,
+                attachmentName,
             });
 
             setContent("");
+            clearAttachment();
             resetConversation(selectedConversationId);
             setUnreadMessagesCount(0);
             await loadConversations();
-        } catch (error: unknown) {
+            scrollToBottom();
+        } catch (err: unknown) {
             setMessageError(
-                getApiErrorMessage(error, "Erreur lors de l'envoi du message")
+                getApiErrorMessage(err, "Erreur lors de l'envoi du message")
             );
         } finally {
             setIsSending(false);
@@ -312,9 +431,10 @@ export default function PrivateMessagesPage() {
             resetConversation(selectedConversationId);
             setUnreadMessagesCount(0);
             await loadConversations();
-        } catch (error: unknown) {
+            scrollToBottom();
+        } catch (err: unknown) {
             setMessageError(
-                getApiErrorMessage(error, "Erreur lors de l'envoi du GIF")
+                getApiErrorMessage(err, "Erreur lors de l'envoi du GIF")
             );
         } finally {
             setIsSending(false);
@@ -331,20 +451,60 @@ export default function PrivateMessagesPage() {
             await deletePrivateMessageRequest(messageId);
             await loadMessages();
             await loadConversations();
-        } catch (error: unknown) {
+        } catch (err: unknown) {
             setMessageError(
-                getApiErrorMessage(error, "Erreur lors de la suppression")
+                getApiErrorMessage(err, "Erreur lors de la suppression")
             );
         }
     }
 
-    const friendsWithoutConversation = friends.filter((friend) => {
-        return !conversations.some((conversation) =>
-            conversation.participants.some(
-                (participant) => participant.userId === friend.id
-            )
-        );
-    });
+    async function startRecording() {
+        try {
+            await startVoiceRecording({
+                onLevels: setVoiceLevels,
+                onTick: setRecordingSeconds,
+            });
+
+            setRecordingSeconds(0);
+            setIsRecording(true);
+            setMessageError("");
+        } catch (error: unknown) {
+            showToast(
+                error instanceof Error
+                    ? error.message
+                    : "Impossible d'accéder au micro"
+            );
+        }
+    }
+
+    async function stopRecording() {
+        try {
+            const result = await stopVoiceRecording();
+
+            setSelectedAttachment(
+                result.file,
+                result.file.name,
+                result.file.type
+            );
+        } catch (error: unknown) {
+            showToast(
+                error instanceof Error
+                    ? error.message
+                    : "Impossible de finaliser le vocal"
+            );
+        } finally {
+            setIsRecording(false);
+            setRecordingSeconds(0);
+            setVoiceLevels(Array.from({ length: 28 }, () => 10));
+        }
+    }
+
+    function cancelRecording() {
+        cancelVoiceRecording();
+        setIsRecording(false);
+        setRecordingSeconds(0);
+        setVoiceLevels(Array.from({ length: 28 }, () => 10));
+    }
 
     return (
         <section className="grid min-h-[70vh] gap-6 lg:grid-cols-[320px_1fr]">
@@ -403,9 +563,13 @@ export default function PrivateMessagesPage() {
                                         </div>
 
                                         <p className="truncate text-sm text-white/50">
-                                            {lastMessage?.gifUrl
-                                                ? "GIF"
-                                                : lastMessage?.content || "Aucun message"}
+                                            {lastMessage?.attachmentUrl
+                                                ? lastMessage.attachmentType?.startsWith("audio/")
+                                                    ? "Message vocal"
+                                                    : "Fichier"
+                                                : lastMessage?.gifUrl
+                                                    ? "GIF"
+                                                    : lastMessage?.content || "Aucun message"}
                                         </p>
                                     </button>
                                 );
@@ -527,12 +691,13 @@ export default function PrivateMessagesPage() {
                                                     )}
 
                                                     <span className="text-xs opacity-60">
-                                                        {new Date(
-                                                            message.createdAt
-                                                        ).toLocaleTimeString([], {
-                                                            hour: "2-digit",
-                                                            minute: "2-digit",
-                                                        })}
+                                                        {new Date(message.createdAt).toLocaleTimeString(
+                                                            [],
+                                                            {
+                                                                hour: "2-digit",
+                                                                minute: "2-digit",
+                                                            }
+                                                        )}
                                                     </span>
                                                 </div>
 
@@ -549,6 +714,8 @@ export default function PrivateMessagesPage() {
                                                         className="mt-2 max-h-72 rounded-xl"
                                                     />
                                                 )}
+
+                                                <MessageAttachment message={message} />
 
                                                 {isMine && (
                                                     <button
@@ -576,10 +743,7 @@ export default function PrivateMessagesPage() {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    messagesContainerRef.current?.scrollTo({
-                                        top: messagesContainerRef.current.scrollHeight,
-                                        behavior: "smooth",
-                                    });
+                                    scrollToBottom();
                                     setUnreadMessagesCount(0);
                                     resetConversation(selectedConversationId);
                                 }}
@@ -590,77 +754,151 @@ export default function PrivateMessagesPage() {
                             </button>
                         )}
 
-                        <form onSubmit={handleSendMessage} className="mt-6 flex flex-col gap-3">
-                            {showGifPicker && (
-                                <div className="rounded-2xl border border-white/10 bg-neutral-950 p-4">
-                                    <div className="mb-4 flex items-center justify-between gap-3">
-                                        <h3 className="font-semibold">Choisir un GIF</h3>
+                        {showGifPicker && (
+                            <div className="mt-4 rounded-2xl border border-white/10 bg-neutral-950 p-4">
+                                <div className="mb-4 flex items-center justify-between gap-3">
+                                    <h3 className="font-semibold">Choisir un GIF</h3>
 
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowGifPicker(false)}
-                                            className="rounded-lg bg-white/10 px-3 py-1 text-sm hover:bg-white/20"
-                                        >
-                                            Fermer
-                                        </button>
-                                    </div>
-
-                                    <div className="mb-4 flex gap-3">
-                                        <input
-                                            value={gifSearch}
-                                            onChange={(event) =>
-                                                setGifSearch(event.target.value)
-                                            }
-                                            onKeyDown={(event) => {
-                                                if (event.key === "Enter") {
-                                                    event.preventDefault();
-                                                    void handleSearchGifs(gifSearch);
-                                                }
-                                            }}
-                                            placeholder="Rechercher un GIF..."
-                                            className="flex-1 rounded-lg border border-white/10 bg-neutral-800 px-4 py-2 outline-none focus:border-fuchsia-400"
-                                        />
-
-                                        <button
-                                            type="button"
-                                            onClick={() => void handleSearchGifs(gifSearch)}
-                                            disabled={isLoadingGifs}
-                                            className="rounded-lg bg-fuchsia-500 px-4 py-2 font-medium hover:bg-fuchsia-600 disabled:opacity-60"
-                                        >
-                                            {isLoadingGifs ? "..." : "OK"}
-                                        </button>
-                                    </div>
-
-                                    {isLoadingGifs ? (
-                                        <p className="py-6 text-center text-white/60">
-                                            Chargement des GIFs...
-                                        </p>
-                                    ) : gifs.length > 0 ? (
-                                        <div className="grid max-h-96 grid-cols-2 gap-3 overflow-y-auto pr-2 md:grid-cols-3">
-                                            {gifs.map((gif) => (
-                                                <button
-                                                    key={gif.id}
-                                                    type="button"
-                                                    onClick={() => void handleSendGif(gif)}
-                                                    className="overflow-hidden rounded-xl border border-white/10 bg-white/5 hover:border-fuchsia-400"
-                                                >
-                                                    {gif.imageUrl && (
-                                                        <img
-                                                            src={gif.imageUrl}
-                                                            alt={gif.title || "GIF"}
-                                                            className="h-40 w-full object-cover transition hover:scale-105"
-                                                        />
-                                                    )}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="py-6 text-center text-white/60">
-                                            Aucun GIF trouvé.
-                                        </p>
-                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowGifPicker(false)}
+                                        className="rounded-lg bg-white/10 px-3 py-1 text-sm hover:bg-white/20"
+                                    >
+                                        Fermer
+                                    </button>
                                 </div>
-                            )}
+
+                                <div className="mb-4 flex gap-3">
+                                    <input
+                                        value={gifSearch}
+                                        onChange={(event) =>
+                                            setGifSearch(event.target.value)
+                                        }
+                                        onKeyDown={(event) => {
+                                            if (event.key === "Enter") {
+                                                event.preventDefault();
+                                                void handleSearchGifs(gifSearch);
+                                            }
+                                        }}
+                                        placeholder="Rechercher un GIF..."
+                                        className="flex-1 rounded-lg border border-white/10 bg-neutral-800 px-4 py-2 outline-none focus:border-fuchsia-400"
+                                    />
+
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleSearchGifs(gifSearch)}
+                                        disabled={isLoadingGifs}
+                                        className="rounded-lg bg-fuchsia-500 px-4 py-2 font-medium hover:bg-fuchsia-600 disabled:opacity-60"
+                                    >
+                                        {isLoadingGifs ? "..." : "OK"}
+                                    </button>
+                                </div>
+
+                                {isLoadingGifs ? (
+                                    <p className="py-6 text-center text-white/60">
+                                        Chargement des GIFs...
+                                    </p>
+                                ) : gifs.length > 0 ? (
+                                    <div className="grid max-h-80 grid-cols-2 gap-3 overflow-y-auto pr-2 md:grid-cols-3">
+                                        {gifs.map((gif) => (
+                                            <button
+                                                key={gif.id}
+                                                type="button"
+                                                onClick={() => void handleSendGif(gif)}
+                                                className="overflow-hidden rounded-xl border border-white/10 bg-white/5 hover:border-fuchsia-400"
+                                            >
+                                                {gif.imageUrl && (
+                                                    <img
+                                                        src={gif.imageUrl}
+                                                        alt={gif.title || "GIF"}
+                                                        className="h-40 w-full object-cover transition hover:scale-105"
+                                                    />
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="py-6 text-center text-white/60">
+                                        Aucun GIF trouvé.
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {attachment && attachmentPreviewUrl && (
+                            <div className="mt-4 rounded-2xl border border-white/10 bg-neutral-950 p-3">
+                                <div className="mb-3 flex items-center justify-between gap-3">
+                                    <div>
+                                        <p className="text-sm font-semibold">
+                                            {attachmentName}
+                                        </p>
+                                        <p className="text-xs text-white/50">
+                                            {attachment instanceof File
+                                                ? formatFileSize(attachment.size)
+                                                : ""}
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={clearAttachment}
+                                        className="rounded-lg bg-red-500 px-3 py-2 text-sm hover:bg-red-600"
+                                    >
+                                        Retirer
+                                    </button>
+                                </div>
+
+                                {attachmentType.startsWith("image/") && (
+                                    <img
+                                        src={attachmentPreviewUrl}
+                                        alt="Aperçu"
+                                        className="max-h-72 rounded-xl"
+                                    />
+                                )}
+
+                                {attachmentType.startsWith("video/") && (
+                                    <video
+                                        src={attachmentPreviewUrl}
+                                        controls
+                                        className="max-h-72 rounded-xl"
+                                    />
+                                )}
+
+                                {attachmentType.startsWith("audio/") && (
+                                    <audio
+                                        controls
+                                        preload="metadata"
+                                        className="w-full"
+                                    >
+                                        <source
+                                            src={attachmentPreviewUrl}
+                                            type={attachmentType}
+                                        />
+                                    </audio>
+                                )}
+                            </div>
+                        )}
+
+                        {isRecording && (
+                            <VoiceRecorderBar
+                                seconds={recordingSeconds}
+                                levels={voiceLevels}
+                                onCancel={cancelRecording}
+                                onStop={() => void stopRecording()}
+                            />
+                        )}
+
+                        <form onSubmit={handleSendMessage} className="mt-6 space-y-3">
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                className="hidden"
+                                onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    if (!file) return;
+                                    setSelectedAttachment(file, file.name, file.type);
+                                }}
+                            />
 
                             <div className="flex gap-3">
                                 <button
@@ -669,6 +907,28 @@ export default function PrivateMessagesPage() {
                                     className="rounded-lg border border-white/10 bg-neutral-800 px-4 py-3 font-semibold hover:bg-neutral-700"
                                 >
                                     GIF
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="rounded-lg border border-white/10 bg-neutral-800 px-4 py-3 font-semibold hover:bg-neutral-700"
+                                >
+                                    Fichier
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        isRecording ? void stopRecording() : void startRecording()
+                                    }
+                                    className={`rounded-lg px-4 py-3 font-semibold ${
+                                        isRecording
+                                            ? "bg-red-500 hover:bg-red-600"
+                                            : "border border-white/10 bg-neutral-800 hover:bg-neutral-700"
+                                    }`}
+                                >
+                                    {isRecording ? "Stop" : "Vocal"}
                                 </button>
 
                                 <input
@@ -680,7 +940,7 @@ export default function PrivateMessagesPage() {
 
                                 <button
                                     type="submit"
-                                    disabled={isSending || !content.trim()}
+                                    disabled={isSending || (!content.trim() && !attachment)}
                                     className="rounded-lg bg-fuchsia-500 px-5 py-3 font-semibold hover:bg-fuchsia-600 disabled:opacity-60"
                                 >
                                     {isSending ? "Envoi..." : "Envoyer"}

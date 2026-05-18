@@ -6,12 +6,17 @@ export type PrivateUser = {
     firstName: string;
     lastName: string;
     email?: string;
+    avatarUrl?: string | null;
 };
 
 export type PrivateMessage = {
     id: string;
-    content: string;
+    content?: string | null;
     gifUrl?: string | null;
+    attachmentUrl?: string | null;
+    attachmentType?: string | null;
+    attachmentName?: string | null;
+    attachmentSize?: number | null;
     conversationId: string;
     authorId: string;
     createdAt: string;
@@ -32,6 +37,13 @@ export type PrivateConversation = {
     updatedAt: string;
     participants: PrivateConversationParticipant[];
     messages: PrivateMessage[];
+};
+
+export type SendPrivateMessagePayload = {
+    content?: string;
+    gifUrl?: string;
+    attachment?: File | Blob | null;
+    attachmentName?: string;
 };
 
 export async function getPrivateConversationsRequest() {
@@ -63,18 +75,35 @@ export async function getPrivateMessagesRequest(conversationId: string) {
 
 export async function sendPrivateMessageRequest(
     conversationId: string,
-    payload: {
-        content?: string;
-        gifUrl?: string;
+    payload: SendPrivateMessagePayload
+) {
+    const formData = new FormData();
+
+    if (payload.content?.trim()) {
+        formData.append("content", payload.content.trim());
     }
-){
+
+    if (payload.gifUrl) {
+        formData.append("gifUrl", payload.gifUrl);
+    }
+
+    if (payload.attachment) {
+        formData.append(
+            "attachment",
+            payload.attachment,
+            payload.attachmentName || "message-file"
+        );
+    }
+
     const response = await api.post<{ message: PrivateMessage }>(
         `/private-conversations/${conversationId}/messages`,
-            payload,
+        formData
     );
 
     return response.data;
 }
+
+export const createPrivateMessageRequest = sendPrivateMessageRequest;
 
 export async function deletePrivateMessageRequest(messageId: string) {
     const response = await api.delete<{ message: string }>(
