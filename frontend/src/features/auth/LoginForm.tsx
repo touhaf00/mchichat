@@ -71,7 +71,7 @@ export function LoginForm() {
             });
 
             await login(data.token, data.user);
-            navigate("/dashboard");
+            navigate("/");
         } catch (err: unknown) {
             setError(getLoginErrorMessage(err));
         } finally {
