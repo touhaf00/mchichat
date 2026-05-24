@@ -1,5 +1,4 @@
 import { api } from "../../lib/api";
-import type { FeedPost } from "../feed/feed.api";
 
 export type ProfileUser = {
     id: string;
@@ -12,63 +11,101 @@ export type ProfileUser = {
     bannerUrl?: string | null;
     role: string;
     createdAt: string;
-    updatedAt?: string;
+    _count?: {
+        posts: number;
+        memberships: number;
+        ownedSalons: number;
+    };
 };
 
-export type PublicProfileResponse = {
+export type ProfilePostAuthor = {
+    id: string;
+    username: string;
+    firstName: string;
+    lastName: string;
+    avatarUrl?: string | null;
+};
+
+export type ProfilePostComment = {
+    id: string;
+    content?: string | null;
+    gifUrl?: string | null;
+    createdAt: string;
+    author: ProfilePostAuthor;
+};
+
+export type ProfilePost = {
+    id: string;
+    content: string;
+    mediaUrl?: string | null;
+    mediaType?: string | null;
+    authorId: string;
+    createdAt: string;
+    updatedAt: string;
+    author: ProfilePostAuthor;
+    comments: ProfilePostComment[];
+    likes: { userId: string }[];
+    likesCount: number;
+    commentsCount: number;
+    isLikedByMe: boolean;
+};
+
+export type ProfileResponse = {
     user: ProfileUser;
-    posts: FeedPost[];
-    friendshipStatus: "PENDING" | "ACCEPTED" | "REJECTED" | null;
-    isMe: boolean;
+    posts: ProfilePost[];
+    friendshipStatus:
+        | "NONE"
+        | "PENDING_SENT"
+        | "PENDING_RECEIVED"
+        | "FRIENDS"
+        | "ME";
+};
+
+export type UpdateProfilePayload = {
+    firstName?: string;
+    lastName?: string;
+    username?: string;
+    bio?: string;
+    avatar?: File | null;
+    banner?: File | null;
 };
 
 export async function getProfileRequest(username: string) {
-    const response = await api.get<PublicProfileResponse>(
-        `/profiles/${username}`
-    );
-
+    const response = await api.get<ProfileResponse>(`/profiles/${username}`);
     return response.data;
 }
 
-export async function getMyProfileRequest() {
-    const response = await api.get<{ user: ProfileUser }>("/profiles/me");
-    return response.data;
-}
+export async function updateMyProfileRequest(payload: UpdateProfilePayload) {
+    const formData = new FormData();
 
-export async function updateMyProfileRequest(payload: {
-    firstName: string;
-    lastName: string;
-    username: string;
-    bio?: string | null;
-}) {
+    if (payload.firstName !== undefined) {
+        formData.append("firstName", payload.firstName);
+    }
+
+    if (payload.lastName !== undefined) {
+        formData.append("lastName", payload.lastName);
+    }
+
+    if (payload.username !== undefined) {
+        formData.append("username", payload.username);
+    }
+
+    if (payload.bio !== undefined) {
+        formData.append("bio", payload.bio);
+    }
+
+    if (payload.avatar) {
+        formData.append("avatar", payload.avatar);
+    }
+
+    if (payload.banner) {
+        formData.append("banner", payload.banner);
+    }
+
     const response = await api.put<{
         message: string;
         user: ProfileUser;
-    }>("/profiles/me", payload);
-
-    return response.data;
-}
-
-export async function updateAvatarRequest(file: File) {
-    const formData = new FormData();
-    formData.append("avatar", file);
-
-    const response = await api.post<{
-        message: string;
-        user: Pick<ProfileUser, "id" | "avatarUrl">;
-    }>("/profiles/me/avatar", formData);
-
-    return response.data;
-}
-
-export async function updateBannerRequest(file: File) {
-    const formData = new FormData();
-    formData.append("banner", file);
-
-    const response = await api.post<{
-        message: string;
-        user: Pick<ProfileUser, "id" | "bannerUrl">;
-    }>("/profiles/me/banner", formData);
+    }>("/profiles/me/settings", formData);
 
     return response.data;
 }

@@ -4,6 +4,9 @@ export type User = {
     username: string;
     firstName: string;
     lastName: string;
+    bio?: string | null;
+    avatarUrl?: string | null;
+    bannerUrl?: string | null;
     role: string;
     createdAt: string;
     updatedAt?: string;
