@@ -1,31 +1,21 @@
 import { Router } from "express";
 import { authenticate } from "../../middlewares/auth.middleware";
-import { uploadProfileImage } from "../../middlewares/profileUpload.middleware";
+import { uploadProfileMedia } from "../../middlewares/profileUpload.middleware";
 import {
-    getMyProfileHandler,
     getProfileHandler,
-    updateAvatarHandler,
-    updateBannerHandler,
     updateMyProfileHandler,
 } from "./profile.controller";
 
 const profileRouter = Router();
 
-profileRouter.get("/me", authenticate, getMyProfileHandler);
-profileRouter.put("/me", authenticate, updateMyProfileHandler);
-
-profileRouter.post(
-    "/me/avatar",
+profileRouter.put(
+    "/me/settings",
     authenticate,
-    uploadProfileImage.single("avatar"),
-    updateAvatarHandler
-);
-
-profileRouter.post(
-    "/me/banner",
-    authenticate,
-    uploadProfileImage.single("banner"),
-    updateBannerHandler
+    uploadProfileMedia.fields([
+        { name: "avatar", maxCount: 1 },
+        { name: "banner", maxCount: 1 },
+    ]),
+    updateMyProfileHandler
 );
 
 profileRouter.get("/:username", authenticate, getProfileHandler);
