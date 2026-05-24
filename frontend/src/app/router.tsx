@@ -12,7 +12,7 @@ import NotFoundPage from "../pages/NotFoundPage";
 import FriendsPage from "../pages/FriendsPage.tsx";
 import PrivateMessagesPage from "../pages/PrivateMessagesPage";
 import FeedPage from "../pages/FeedPage";
-import PublicProfilePage from "../pages/PublicProfilePage";
+import ProfileSettingsPage from "../pages/ProfileSettingsPage";
 
 
 export const router = createBrowserRouter([
@@ -37,12 +37,16 @@ export const router = createBrowserRouter([
                 element: <ProtectedRoute />,
                 children: [
                     {
+                        path: "/profile/settings",
+                        element: <ProfileSettingsPage />,
+                    },
+                    {
                         path: "profile",
                         element: <ProfilePage />,
                     },
                     {
                         path: "profile/:username",
-                        element: <PublicProfilePage />,
+                        element: <ProfilePage />,
                     },
                     {
                         path: "dashboard",
@@ -63,7 +67,7 @@ export const router = createBrowserRouter([
                     {
                         path: "feed",
                         element: <FeedPage />,
-                    }
+                    },
                 ],
             },
         ],
