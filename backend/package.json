@@ -1,6 +1,9 @@
 {
   "name": "backend",
   "version": "1.0.0",
+  "overrides": {
+    "ws": "^8.17.1"
+  },
   "main": "index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
@@ -28,7 +31,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "prisma": "^6.19.3",
-    "socket.io": "^4.8.3",
+    "socket.io": "^4.5.4",
     "zod": "^4.3.6"
   },
   "devDependencies": {

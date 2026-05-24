@@ -1,20 +1,30 @@
-import type { Request, Response, NextFunction } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { getStringParam } from "../../utils/params";
+import { getProfileByUsername, updateMyProfile } from "./profile.service";
 import { updateProfileSchema } from "./profile.schema";
-import {
-    getMyProfile,
-    getProfileByUsername,
-    updateAvatar,
-    updateBanner,
-    updateMyProfile,
-} from "./profile.service";
 
-function getUploadedProfileImage(file?: Express.Multer.File) {
-    if (!file) {
-        return null;
+function getProfileFileUrls(files: Request["files"]) {
+    const result: {
+        avatarUrl?: string | null;
+        bannerUrl?: string | null;
+    } = {};
+
+    if (!files || Array.isArray(files)) {
+        return result;
     }
 
-    return `/uploads/profiles/${file.filename}`;
+    const avatar = files.avatar?.[0];
+    const banner = files.banner?.[0];
+
+    if (avatar) {
+        result.avatarUrl = `/uploads/profiles/${avatar.filename}`;
+    }
+
+    if (banner) {
+        result.bannerUrl = `/uploads/profiles/${banner.filename}`;
+    }
+
+    return result;
 }
 
 export async function getProfileHandler(
@@ -23,36 +33,12 @@ export async function getProfileHandler(
     next: NextFunction
 ) {
     try {
+        const username = getStringParam(req.params.username, "Username");
         const currentUserId = req.user?.userId;
 
-        if (!currentUserId) {
-            return res.status(401).json({ message: "Non autorisé" });
-        }
-
-        const username = getStringParam(req.params.username, "Username");
         const profile = await getProfileByUsername(username, currentUserId);
 
         return res.status(200).json(profile);
-    } catch (error) {
-        next(error);
-    }
-}
-
-export async function getMyProfileHandler(
-    req: Request,
-    res: Response,
-    next: NextFunction
-) {
-    try {
-        const userId = req.user?.userId;
-
-        if (!userId) {
-            return res.status(401).json({ message: "Non autorisé" });
-        }
-
-        const user = await getMyProfile(userId);
-
-        return res.status(200).json({ user });
     } catch (error) {
         next(error);
     }
@@ -67,76 +53,23 @@ export async function updateMyProfileHandler(
         const userId = req.user?.userId;
 
         if (!userId) {
-            return res.status(401).json({ message: "Non autorisé" });
-        }
-
-        const data = updateProfileSchema.parse(req.body);
-        const user = await updateMyProfile(userId, data);
-
-        return res.status(200).json({
-            message: "Profil mis à jour",
-            user,
-        });
-    } catch (error) {
-        next(error);
-    }
-}
-
-export async function updateAvatarHandler(
-    req: Request,
-    res: Response,
-    next: NextFunction
-) {
-    try {
-        const userId = req.user?.userId;
-
-        if (!userId) {
-            return res.status(401).json({ message: "Non autorisé" });
-        }
-
-        const avatarUrl = getUploadedProfileImage(req.file);
-
-        if (!avatarUrl) {
-            return res.status(400).json({
-                message: "Image d'avatar requise",
+            return res.status(401).json({
+                message: "Non autorisé",
             });
         }
 
-        const user = await updateAvatar(userId, avatarUrl);
-
-        return res.status(200).json({
-            message: "Avatar mis à jour",
-            user,
+        const data = updateProfileSchema.parse({
+            firstName: req.body.firstName,
+            lastName: req.body.lastName,
+            username: req.body.username,
+            bio: req.body.bio,
         });
-    } catch (error) {
-        next(error);
-    }
-}
 
-export async function updateBannerHandler(
-    req: Request,
-    res: Response,
-    next: NextFunction
-) {
-    try {
-        const userId = req.user?.userId;
-
-        if (!userId) {
-            return res.status(401).json({ message: "Non autorisé" });
-        }
-
-        const bannerUrl = getUploadedProfileImage(req.file);
-
-        if (!bannerUrl) {
-            return res.status(400).json({
-                message: "Image de bannière requise",
-            });
-        }
-
-        const user = await updateBanner(userId, bannerUrl);
+        const files = getProfileFileUrls(req.files);
+        const user = await updateMyProfile(userId, data, files);
 
         return res.status(200).json({
-            message: "Bannière mise à jour",
+            message: "Profil mis à jour avec succès",
             user,
         });
     } catch (error) {
