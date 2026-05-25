@@ -1,7 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import type { UpdateProfileInput } from "./profile.schema";
 
-function postInclude(userId?: string) {
+function postInclude() {
     return {
         author: {
             select: {
@@ -85,7 +85,7 @@ export async function getProfileByUsername(username: string, currentUserId?: str
         orderBy: {
             createdAt: "desc",
         },
-        include: postInclude(currentUserId),
+        include: postInclude(),
     });
 
     let friendshipStatus: "NONE" | "PENDING_SENT" | "PENDING_RECEIVED" | "FRIENDS" | "ME" =
@@ -171,4 +171,27 @@ export async function updateMyProfile(
             updatedAt: true,
         },
     });
+}
+export async function deleteMyAccount(userId: string) {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+    });
+
+    if (!user) {
+        throw new Error("Utilisateur introuvable");
+    }
+
+    await prisma.friendship.deleteMany({
+        where: {
+            OR: [{ senderId: userId }, { receiverId: userId }],
+        },
+    });
+
+    await prisma.user.delete({
+        where: { id: userId },
+    });
+
+    return {
+        message: "Compte supprimé avec succès",
+    };
 }

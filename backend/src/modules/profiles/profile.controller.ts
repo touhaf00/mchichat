@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { getStringParam } from "../../utils/params";
-import { getProfileByUsername, updateMyProfile } from "./profile.service";
+import { getProfileByUsername, updateMyProfile, deleteMyAccount } from "./profile.service";
 import { updateProfileSchema } from "./profile.schema";
 
 function getProfileFileUrls(files: Request["files"]) {
@@ -72,6 +72,26 @@ export async function updateMyProfileHandler(
             message: "Profil mis à jour avec succès",
             user,
         });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function deleteMyAccountHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    try {
+        const userId = req.user?.userId;
+
+        if (!userId) {
+            return res.status(401).json({ message: "Non autorisé" });
+        }
+
+        const result = await deleteMyAccount(userId);
+
+        return res.status(200).json(result);
     } catch (error) {
         next(error);
     }
