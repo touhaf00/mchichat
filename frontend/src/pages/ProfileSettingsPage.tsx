@@ -2,17 +2,18 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Camera, Save } from "lucide-react";
 import { useAuth } from "../features/auth/useAuth";
-import { updateMyProfileRequest } from "../features/profiles/profile.api";
+import { updateMyProfileRequest, deleteMyAccountRequest } from "../features/profiles/profile.api";
 import { getApiErrorMessage } from "../lib/getApiErrorMessage";
 import { getPublicFileUrl } from "../lib/media";
 import { useNotifications } from "../features/notifications/NotificationProvider";
+import { Trash2 } from "lucide-react";;
 
 function getInitials(firstName?: string, lastName?: string) {
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
 }
 
 export default function ProfileSettingsPage() {
-    const { user, isLoading, refreshMe } = useAuth();
+    const { user, isLoading, refreshMe, logout } = useAuth();
     const navigate = useNavigate();
     const { showToast } = useNotifications();
 
@@ -143,6 +144,25 @@ export default function ProfileSettingsPage() {
         }
     }
 
+    async function handleDeleteAccount() {
+        const confirmed = window.confirm(
+            "Cette action est définitive. Supprimer ton compte ?"
+        );
+
+        if (!confirmed) return;
+
+        try {
+            setIsSubmitting(true);
+            await deleteMyAccountRequest();
+            logout();
+            navigate("/register");
+        } catch (err: unknown) {
+            setError(getApiErrorMessage(err, "Impossible de supprimer le compte"));
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
     if (isLoading) {
         return (
             <div className="rounded-3xl border border-white/10 bg-neutral-900 p-8">
@@ -197,10 +217,11 @@ export default function ProfileSettingsPage() {
                         />
                     )}
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/60 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/60 to-transparent"/>
 
-                    <label className="absolute bottom-4 right-4 inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-black/60 px-4 py-3 text-sm font-bold backdrop-blur hover:bg-black/80">
-                        <Camera className="h-4 w-4" />
+                    <label
+                        className="absolute bottom-4 right-4 inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-black/60 px-4 py-3 text-sm font-bold backdrop-blur hover:bg-black/80">
+                        <Camera className="h-4 w-4"/>
                         Changer la bannière
 
                         <input
@@ -222,13 +243,15 @@ export default function ProfileSettingsPage() {
                                     className="h-32 w-32 rounded-full border-4 border-neutral-900 object-cover"
                                 />
                             ) : (
-                                <div className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-neutral-900 bg-fuchsia-500 text-4xl font-black">
+                                <div
+                                    className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-neutral-900 bg-fuchsia-500 text-4xl font-black">
                                     {getInitials(user.firstName, user.lastName)}
                                 </div>
                             )}
 
-                            <label className="absolute bottom-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-fuchsia-500 hover:bg-fuchsia-600">
-                                <Camera className="h-5 w-5" />
+                            <label
+                                className="absolute bottom-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-fuchsia-500 hover:bg-fuchsia-600">
+                                <Camera className="h-5 w-5"/>
 
                                 <input
                                     type="file"
@@ -311,7 +334,7 @@ export default function ProfileSettingsPage() {
                             disabled={isSubmitting}
                             className="inline-flex items-center gap-2 rounded-2xl bg-fuchsia-500 px-6 py-3 font-bold hover:bg-fuchsia-600 disabled:opacity-60"
                         >
-                            <Save className="h-4 w-4" />
+                            <Save className="h-4 w-4"/>
                             {isSubmitting
                                 ? "Enregistrement..."
                                 : "Enregistrer"}
@@ -319,6 +342,26 @@ export default function ProfileSettingsPage() {
                     </div>
                 </div>
             </form>
+            <div className="rounded-3xl border border-red-500/20 bg-red-500/10 p-6">
+                <h2 className="text-xl font-bold text-red-300">
+                    Supprimer mon Mchichat
+                </h2>
+
+                <p className="mt-2 text-sm text-red-100/70">
+                    La suppression du compte est définitive. Tes messages, posts,
+                    salons créés, commentaires et données associées seront supprimés.
+                </p>
+
+                <button
+                    type="button"
+                    onClick={() => void handleDeleteAccount()}
+                    disabled={isSubmitting}
+                    className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-red-500 px-5 py-3 font-bold hover:bg-red-600 disabled:opacity-60"
+                >
+                    <Trash2 className="h-4 w-4"/>
+                    Supprimer mon compte
+                </button>
+            </div>
         </section>
     );
 }
