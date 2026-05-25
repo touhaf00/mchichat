@@ -109,3 +109,8 @@ export async function updateMyProfileRequest(payload: UpdateProfilePayload) {
 
     return response.data;
 }
+
+export async function deleteMyAccountRequest() {
+    const response = await api.delete<{ message: string }>("/profiles/me");
+    return response.data;
+}

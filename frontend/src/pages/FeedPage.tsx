@@ -15,6 +15,7 @@ import { searchGifsRequest, type GifResult } from "../features/giphy/giphy.api";
 import { getApiErrorMessage } from "../lib/getApiErrorMessage";
 import { getPublicFileUrl } from "../lib/media";
 import { useNotifications } from "../features/notifications/NotificationProvider";
+import { getLatestNewsRequest, type NewsArticle } from "../features/news/news.api";
 
 function getWeatherLabel(code: number) {
     if (code === 0) return "Ciel dégagé";
@@ -55,6 +56,9 @@ export default function FeedPage() {
     const [isLoadingWeather, setIsLoadingWeather] = useState(true);
     const [isPosting, setIsPosting] = useState(false);
     const [error, setError] = useState("");
+
+    const [news, setNews] = useState<NewsArticle[]>([]);
+    const [isLoadingNews, setIsLoadingNews] = useState(true);
 
     function handleMediaChange(file: File | null) {
         setMedia(file);
@@ -124,9 +128,23 @@ export default function FeedPage() {
         );
     }
 
+    async function loadNews() {
+        try {
+            setIsLoadingNews(true);
+
+            const data = await getLatestNewsRequest();
+            setNews(data.articles);
+        } catch (err: unknown) {
+            showToast(getApiErrorMessage(err, "Erreur lors du chargement des actualités"));
+        } finally {
+            setIsLoadingNews(false);
+        }
+    }
+
     useEffect(() => {
         void loadFeed();
         void loadWeather();
+        void loadNews();
 
         function refreshFeed() {
             void loadFeed();
@@ -325,7 +343,8 @@ export default function FeedPage() {
 
     return (
         <section className="mx-auto max-w-3xl space-y-6">
-            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-fuchsia-500/20 to-blue-500/10 p-6 shadow-2xl">
+            <div
+                className="rounded-3xl border border-white/10 bg-gradient-to-br from-fuchsia-500/20 to-blue-500/10 p-6 shadow-2xl">
                 {isLoadingWeather ? (
                     <p className="text-white/70">Chargement de la météo locale...</p>
                 ) : weather ? (
@@ -368,12 +387,72 @@ export default function FeedPage() {
                 )}
             </div>
 
+            <div className="rounded-3xl border border-white/10 bg-neutral-900 p-6">
+                <div className="mb-5 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-xl font-bold">Actualités</h2>
+                        <p className="mt-1 text-sm text-white/50">
+                            Actualités du monde
+                        </p>
+                    </div>
+                </div>
+
+                {isLoadingNews ? (
+                    <p className="text-white/60">Chargement des actualités...</p>
+                ) : news.length > 0 ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {news.slice(0, 4).map((article) => (
+                            <a
+                                key={article.id}
+                                href={article.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10"
+                            >
+                                {article.imageUrl && (
+                                    <img
+                                        src={article.imageUrl}
+                                        alt={article.title}
+                                        className="h-40 w-full object-cover"
+                                    />
+                                )}
+
+                                <div className="p-4">
+                                    <p className="text-xs uppercase tracking-wide text-white/40">
+                                        {article.sourceName || "Actualité"}
+                                    </p>
+
+                                    <h3 className="mt-2 line-clamp-2 font-bold">
+                                        {article.title}
+                                    </h3>
+
+                                    {article.description && (
+                                        <p className="mt-2 line-clamp-3 text-sm text-white/60">
+                                            {article.description}
+                                        </p>
+                                    )}
+
+                                    {article.publishedAt && (
+                                        <p className="mt-3 text-xs text-white/40">
+                                            {new Date(article.publishedAt).toLocaleString("fr-FR")}
+                                        </p>
+                                    )}
+                                </div>
+                            </a>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-white/60">Aucune actualité disponible.</p>
+                )}
+            </div>
+
             <form
                 onSubmit={handleCreatePost}
                 className="rounded-3xl border border-white/10 bg-neutral-900 p-6"
             >
                 <div className="mb-4 flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-fuchsia-500 font-bold">
+                    <div
+                        className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-fuchsia-500 font-bold">
                         {user?.firstName?.[0]}
                         {user?.lastName?.[0]}
                     </div>
@@ -403,7 +482,8 @@ export default function FeedPage() {
                     className="min-h-32 w-full resize-none rounded-2xl border border-white/10 bg-neutral-800 px-4 py-3 outline-none focus:border-fuchsia-400"
                 />
 
-                <label className="mt-3 block cursor-pointer rounded-2xl border border-dashed border-white/20 bg-neutral-800 p-5 text-center transition hover:border-fuchsia-400 hover:bg-neutral-800/80">
+                <label
+                    className="mt-3 block cursor-pointer rounded-2xl border border-dashed border-white/20 bg-neutral-800 p-5 text-center transition hover:border-fuchsia-400 hover:bg-neutral-800/80">
                     <input
                         type="file"
                         accept="image/*,video/*"
@@ -484,7 +564,8 @@ export default function FeedPage() {
                             >
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-white/10 font-bold">
+                                        <div
+                                            className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-white/10 font-bold">
                                             {post.author.avatarUrl ? (
                                                 <img
                                                     src={getPublicFileUrl(post.author.avatarUrl)}
@@ -545,7 +626,8 @@ export default function FeedPage() {
                                             className="min-h-28 w-full rounded-2xl border border-white/10 bg-neutral-800 px-4 py-3 outline-none focus:border-fuchsia-400"
                                         />
 
-                                        <label className="block cursor-pointer rounded-2xl border border-dashed border-white/20 bg-neutral-800 p-4 text-center transition hover:border-fuchsia-400 hover:bg-neutral-800/80">
+                                        <label
+                                            className="block cursor-pointer rounded-2xl border border-dashed border-white/20 bg-neutral-800 p-4 text-center transition hover:border-fuchsia-400 hover:bg-neutral-800/80">
                                             <input
                                                 type="file"
                                                 accept="image/*,video/*"
