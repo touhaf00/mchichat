@@ -3,6 +3,7 @@ import { useAuth } from "../../features/auth/useAuth";
 import { SocketNotifications } from "../../features/notifications/SocketNotifications";
 import { useNotifications } from "../../features/notifications/NotificationProvider";
 import { socket } from "../../lib/socket";
+import { ThemeToggle } from "../../features/theme/ThemeToggle";
 
 function NotificationBadge({ count }: { count: number }) {
     if (count <= 0) return null;
@@ -90,6 +91,7 @@ export function AppLayout() {
                                 >
                                     Déconnexion
                                 </button>
+                                <ThemeToggle />
                             </>
                         ) : (
                             <>

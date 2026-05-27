@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useState, useRef, type ChangeEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Camera, Save } from "lucide-react";
 import { useAuth } from "../features/auth/useAuth";
@@ -6,7 +6,7 @@ import { updateMyProfileRequest, deleteMyAccountRequest } from "../features/prof
 import { getApiErrorMessage } from "../lib/getApiErrorMessage";
 import { getPublicFileUrl } from "../lib/media";
 import { useNotifications } from "../features/notifications/NotificationProvider";
-import { Trash2 } from "lucide-react";;
+import { Trash2 } from "lucide-react";
 
 function getInitials(firstName?: string, lastName?: string) {
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
@@ -37,6 +37,8 @@ export default function ProfileSettingsPage() {
 
     const [error, setError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
         return () => {
@@ -217,10 +219,12 @@ export default function ProfileSettingsPage() {
                         />
                     )}
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/60 to-transparent"/>
+                    <div
+                        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-neutral-950/60 to-transparent"/>
 
                     <label
-                        className="absolute bottom-4 right-4 inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-black/60 px-4 py-3 text-sm font-bold backdrop-blur hover:bg-black/80">
+                        className="absolute bottom-4 right-4 z-20 inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm font-bold text-neutral-900 shadow-lg transition hover:bg-neutral-100 dark:border-white/10 dark:bg-black/70 dark:text-white dark:hover:bg-black/90"
+                    >
                         <Camera className="h-4 w-4"/>
                         Changer la bannière
 
@@ -228,11 +232,10 @@ export default function ProfileSettingsPage() {
                             type="file"
                             accept="image/*"
                             onChange={handleBannerChange}
-                            className="hidden"
+                            className="absolute inset-0 cursor-pointer opacity-0"
                         />
                     </label>
                 </div>
-
                 <div className="relative px-8 pb-8">
                     <div className="-mt-16">
                         <div className="relative h-32 w-32">
@@ -249,17 +252,21 @@ export default function ProfileSettingsPage() {
                                 </div>
                             )}
 
-                            <label
-                                className="absolute bottom-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-fuchsia-500 hover:bg-fuchsia-600">
+                            <button
+                                type="button"
+                                onClick={() => avatarInputRef.current?.click()}
+                                className="absolute bottom-1 right-1 flex h-10 w-10 items-center justify-center rounded-full bg-fuchsia-500 hover:bg-fuchsia-600"
+                            >
                                 <Camera className="h-5 w-5"/>
+                            </button>
 
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleAvatarChange}
-                                    className="hidden"
-                                />
-                            </label>
+                            <input
+                                ref={avatarInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleAvatarChange}
+                                className="hidden"
+                            />
                         </div>
                     </div>
 
@@ -342,12 +349,12 @@ export default function ProfileSettingsPage() {
                     </div>
                 </div>
             </form>
-            <div className="rounded-3xl border border-red-500/20 bg-red-500/10 p-6">
-                <h2 className="text-xl font-bold text-red-300">
-                    Supprimer mon Mchichat
+            <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-neutral-900">
+                <h2 className="text-xl font-bold text-red-700">
+                    Supprimer mon compte
                 </h2>
 
-                <p className="mt-2 text-sm text-red-100/70">
+                <p className="mt-2 text-sm text-neutral-800">
                     La suppression du compte est définitive. Tes messages, posts,
                     salons créés, commentaires et données associées seront supprimés.
                 </p>
@@ -356,7 +363,7 @@ export default function ProfileSettingsPage() {
                     type="button"
                     onClick={() => void handleDeleteAccount()}
                     disabled={isSubmitting}
-                    className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-red-500 px-5 py-3 font-bold hover:bg-red-600 disabled:opacity-60"
+                    className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-red-600 px-5 py-3 font-bold text-white hover:bg-red-700 disabled:opacity-60"
                 >
                     <Trash2 className="h-4 w-4"/>
                     Supprimer mon compte

@@ -4,12 +4,15 @@ import App from "./App";
 import "./index.css";
 import { Providers } from "./app/providers";
 import { NotificationProvider } from "./features/notifications/NotificationProvider";
+import { ThemeProvider } from "./features/theme/ThemeProvider.tsx";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
         <Providers>
             <NotificationProvider>
-                <App />
+                <ThemeProvider>
+                    <App />
+                </ThemeProvider>
             </NotificationProvider>
         </Providers>
     </React.StrictMode>
