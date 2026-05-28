@@ -7,6 +7,8 @@ import {
 import {
     getMessages,
     sendMessage,
+    updateMessageRequest,
+    deleteMessageRequest,
     type SalonMessage,
 } from "../features/messages/messages.api";
 import {
@@ -125,6 +127,9 @@ export default function SalonPage() {
     const [voiceLevels, setVoiceLevels] = useState<number[]>(
         Array.from({ length: 28 }, () => 10)
     );
+
+    const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+    const [editingMessageContent, setEditingMessageContent] = useState("");
 
     function clearAttachment() {
         if (attachmentPreviewUrl) {
@@ -246,6 +251,21 @@ export default function SalonPage() {
         }
     }
 
+    async function handleDeleteMessage(messageId: string) {
+        const confirmed = window.confirm("Supprimer ce message ?");
+        if (!confirmed) return;
+
+        try {
+            await deleteMessageRequest(messageId);
+
+            setMessages((current) =>
+                current.filter((message) => message.id !== messageId)
+            );
+        } catch (err: unknown) {
+            showToast(getApiErrorMessage(err, "Impossible de supprimer le message"));
+        }
+    }
+
     async function loadDefaultGifs() {
         try {
             setIsSearchingGifs(true);
@@ -314,6 +334,27 @@ export default function SalonPage() {
         }
     }
 
+    async function handleUpdateMessage(messageId: string) {
+        const trimmedContent = editingMessageContent.trim();
+
+        if (!trimmedContent) return;
+
+        try {
+            const data = await updateMessageRequest(messageId, trimmedContent);
+
+            setMessages((current) =>
+                current.map((message) =>
+                    message.id === messageId ? data.updatedMessage : message
+                )
+            );
+
+            setEditingMessageId(null);
+            setEditingMessageContent("");
+        } catch (err: unknown) {
+            showToast(getApiErrorMessage(err, "Impossible de modifier le message"));
+        }
+    }
+
     async function startRecording() {
         try {
             await startVoiceRecording({
@@ -360,6 +401,11 @@ export default function SalonPage() {
         setIsRecording(false);
         setRecordingSeconds(0);
         setVoiceLevels(Array.from({ length: 28 }, () => 10));
+    }
+
+    function startEditingMessage(message: SalonMessage) {
+        setEditingMessageId(message.id);
+        setEditingMessageContent(message.content || "");
     }
 
     useEffect(() => {
@@ -594,7 +640,37 @@ export default function SalonPage() {
                                         </p>
                                     </div>
 
-                                    {message.content &&
+                                    {editingMessageId === message.id ? (
+                                        <div className="mt-3 space-y-2">
+                                            <input
+                                                value={editingMessageContent}
+                                                onChange={(event) => setEditingMessageContent(event.target.value)}
+                                                className="w-full rounded-xl border border-white/10 bg-neutral-800 px-3 py-2 outline-none focus:border-fuchsia-400"
+                                                autoFocus
+                                            />
+
+                                            <div className="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void handleUpdateMessage(message.id)}
+                                                    className="rounded-lg bg-fuchsia-500 px-3 py-2 text-xs font-bold hover:bg-fuchsia-600"
+                                                >
+                                                    Enregistrer
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setEditingMessageId(null);
+                                                        setEditingMessageContent("");
+                                                    }}
+                                                    className="rounded-lg bg-white/10 px-3 py-2 text-xs font-bold hover:bg-white/20"
+                                                >
+                                                    Annuler
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : message.content &&
                                     (message.content.startsWith("https://media") ||
                                         message.content.includes("giphy.com")) ? (
                                         <img
@@ -611,6 +687,27 @@ export default function SalonPage() {
                                     )}
 
                                     <MessageAttachment message={message} />
+                                    {message.authorId === user?.id && (
+                                        <div className="mt-2 flex gap-3">
+                                            {message.content && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => startEditingMessage(message)}
+                                                    className="text-xs text-white/40 hover:text-white"
+                                                >
+                                                    Modifier
+                                                </button>
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleDeleteMessage(message.id)}
+                                                className="text-xs text-red-400 hover:text-red-300"
+                                            >
+                                                Supprimer
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

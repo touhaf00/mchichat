@@ -60,3 +60,25 @@ export async function sendMessage(payload: {
 
     return res.data;
 }
+
+export async function deleteMessageRequest(messageId: string) {
+    const response = await api.delete<{ message: string }>(
+        `/messages/${messageId}`
+    );
+
+    return response.data;
+}
+
+export async function updateMessageRequest(
+    messageId: string,
+    content: string
+) {
+    const response = await api.patch<{
+        message: string;
+        updatedMessage: SalonMessage;
+    }>(`/messages/${messageId}`, {
+        content,
+    });
+
+    return response.data;
+}

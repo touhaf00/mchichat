@@ -74,3 +74,11 @@ export async function getFriendsRequest() {
 
     return response.data;
 }
+
+export async function removeFriendRequest(friendId: string) {
+    const response = await api.delete<{ message: string }>(
+        `/friends/${friendId}`
+    );
+
+    return response.data;
+}

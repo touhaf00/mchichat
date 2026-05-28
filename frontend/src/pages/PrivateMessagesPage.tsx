@@ -18,6 +18,7 @@ import {
     getPrivateConversationsRequest,
     getPrivateMessagesRequest,
     sendPrivateMessageRequest,
+    updatePrivateMessageRequest,
     type PrivateConversation,
     type PrivateMessage,
     type PrivateUser,
@@ -148,6 +149,9 @@ export default function PrivateMessagesPage() {
     const [voiceLevels, setVoiceLevels] = useState<number[]>(
         Array.from({ length: 28 }, () => 10)
     );
+
+    const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+    const [editingMessageContent, setEditingMessageContent] = useState("");
 
     const selectedConversation = useMemo(() => {
         return conversations.find(
@@ -458,6 +462,37 @@ export default function PrivateMessagesPage() {
         }
     }
 
+    async function handleUpdateMessage(messageId: string) {
+        const trimmedContent = editingMessageContent.trim();
+
+        if (!trimmedContent) return;
+
+        try {
+            const data = await updatePrivateMessageRequest(
+                messageId,
+                trimmedContent
+            );
+
+            setMessages((current) =>
+                current.map((message) =>
+                    message.id === messageId
+                        ? data.updatedMessage
+                        : message
+                )
+            );
+
+            setEditingMessageId(null);
+            setEditingMessageContent("");
+        } catch (err: unknown) {
+            setMessageError(
+                getApiErrorMessage(
+                    err,
+                    "Erreur lors de la modification"
+                )
+            );
+        }
+    }
+
     async function startRecording() {
         try {
             await startVoiceRecording({
@@ -504,6 +539,11 @@ export default function PrivateMessagesPage() {
         setIsRecording(false);
         setRecordingSeconds(0);
         setVoiceLevels(Array.from({ length: 28 }, () => 10));
+    }
+
+    function startEditingMessage(message: PrivateMessage) {
+        setEditingMessageId(message.id);
+        setEditingMessageContent(message.content || "");
     }
 
     return (
@@ -701,10 +741,44 @@ export default function PrivateMessagesPage() {
                                                     </span>
                                                 </div>
 
-                                                {message.content && (
-                                                    <p className="whitespace-pre-wrap">
-                                                        {message.content}
-                                                    </p>
+                                                {editingMessageId === message.id ? (
+                                                    <div className="mt-2 space-y-2">
+                                                        <input
+                                                            value={editingMessageContent}
+                                                            onChange={(event) =>
+                                                                setEditingMessageContent(event.target.value)
+                                                            }
+                                                            className="w-full rounded-xl border border-white/10 bg-neutral-800 px-3 py-2 outline-none focus:border-fuchsia-400"
+                                                            autoFocus
+                                                        />
+
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => void handleUpdateMessage(message.id)}
+                                                                className="rounded-lg bg-fuchsia-500 px-3 py-2 text-xs font-bold hover:bg-fuchsia-600"
+                                                            >
+                                                                Enregistrer
+                                                            </button>
+
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setEditingMessageId(null);
+                                                                    setEditingMessageContent("");
+                                                                }}
+                                                                className="rounded-lg bg-white/10 px-3 py-2 text-xs font-bold hover:bg-white/20"
+                                                            >
+                                                                Annuler
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    message.content && (
+                                                        <p className="whitespace-pre-wrap">
+                                                            {message.content}
+                                                        </p>
+                                                    )
                                                 )}
 
                                                 {message.gifUrl && (
@@ -718,15 +792,27 @@ export default function PrivateMessagesPage() {
                                                 <MessageAttachment message={message} />
 
                                                 {isMine && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            void handleDeleteMessage(message.id)
-                                                        }
-                                                        className="mt-2 text-xs opacity-70 hover:opacity-100"
-                                                    >
-                                                        Supprimer
-                                                    </button>
+                                                    <div className="mt-2 flex gap-3">
+                                                        {message.content && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => startEditingMessage(message)}
+                                                                className="text-xs opacity-70 hover:opacity-100"
+                                                            >
+                                                                Modifier
+                                                            </button>
+                                                        )}
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                void handleDeleteMessage(message.id)
+                                                            }
+                                                            className="text-xs opacity-70 hover:opacity-100"
+                                                        >
+                                                            Supprimer
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>

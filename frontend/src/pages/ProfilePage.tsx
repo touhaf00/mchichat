@@ -16,7 +16,10 @@ import {
     type ProfileResponse,
 } from "../features/profiles/profile.api";
 import { createPrivateConversationRequest } from "../features/private-messages/privateMessages.api";
-import { sendFriendRequestRequest } from "../features/friends/friends.api";
+import {
+    sendFriendRequestRequest,
+    removeFriendRequest,
+} from "../features/friends/friends.api";
 import { getApiErrorMessage } from "../lib/getApiErrorMessage";
 import { getPublicFileUrl } from "../lib/media";
 import { useNotifications } from "../features/notifications/NotificationProvider";
@@ -161,6 +164,35 @@ export default function ProfilePage() {
         }
     }
 
+    async function handleRemoveFriend() {
+        if (!profile) return;
+
+        const confirmed = window.confirm(
+            `Retirer @${profile.user.username} de tes amis ?`
+        );
+
+        if (!confirmed) return;
+
+        try {
+            await removeFriendRequest(profile.user.id);
+
+            showToast("Ami supprimé");
+
+            setProfile((current) =>
+                current
+                    ? {
+                        ...current,
+                        friendshipStatus: "NONE",
+                    }
+                    : current
+            );
+        } catch (err: unknown) {
+            showToast(
+                getApiErrorMessage(err, "Impossible de supprimer cet ami")
+            );
+        }
+    }
+
     async function handleOpenConversation() {
         if (!profile) return;
 
@@ -292,15 +324,25 @@ export default function ProfilePage() {
                                     )}
 
                                     {profile.friendshipStatus === "FRIENDS" && (
-                                        <button
-                                            type="button"
-                                            onClick={() => void handleOpenConversation()}
-                                            disabled={isOpeningConversation}
-                                            className="inline-flex items-center gap-2 rounded-2xl bg-blue-500 px-5 py-3 font-bold hover:bg-blue-600 disabled:opacity-60"
-                                        >
-                                            <MessageCircle className="h-4 w-4" />
-                                            Message
-                                        </button>
+                                        <div className="flex gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleOpenConversation()}
+                                                disabled={isOpeningConversation}
+                                                className="inline-flex items-center gap-2 rounded-2xl bg-blue-500 px-5 py-3 font-bold hover:bg-blue-600 disabled:opacity-60"
+                                            >
+                                                <MessageCircle className="h-4 w-4" />
+                                                Message
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleRemoveFriend()}
+                                                className="rounded-2xl bg-red-500 px-5 py-3 font-bold text-white hover:bg-red-600"
+                                            >
+                                                Retirer
+                                            </button>
+                                        </div>
                                     )}
                                 </>
                             )}
