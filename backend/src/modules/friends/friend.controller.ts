@@ -12,6 +12,7 @@ import {
     respondToFriendRequest,
     searchUsersByUsername,
     sendFriendRequest,
+    removeFriend,
 } from "./friend.service";
 import { getIO } from "../../lib/socket";
 
@@ -159,6 +160,30 @@ export async function getFriendsHandler(
         const friends = await getFriends(userId);
 
         res.status(200).json({ friends });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function removeFriendHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    try {
+        const userId = req.user?.userId;
+
+        if (!userId) {
+            return res.status(401).json({
+                message: "Non autorisé",
+            });
+        }
+
+        const friendId = getStringParam(req.params.friendId, "Friend ID");
+
+        const result = await removeFriend(userId, friendId);
+
+        return res.status(200).json(result);
     } catch (error) {
         next(error);
     }

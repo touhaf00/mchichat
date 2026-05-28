@@ -214,3 +214,35 @@ export async function getFriends(userId: string) {
             : friendship.sender;
     });
 }
+
+export async function removeFriend(userId: string, friendId: string) {
+    const friendship = await prisma.friendship.findFirst({
+        where: {
+            OR: [
+                {
+                    senderId: userId,
+                    receiverId: friendId,
+                },
+                {
+                    senderId: friendId,
+                    receiverId: userId,
+                },
+            ],
+            status: "ACCEPTED",
+        },
+    });
+
+    if (!friendship) {
+        throw new Error("Ami introuvable");
+    }
+
+    await prisma.friendship.delete({
+        where: {
+            id: friendship.id,
+        },
+    });
+
+    return {
+        message: "Ami supprimé",
+    };
+}

@@ -7,6 +7,7 @@ import {
     respondToFriendRequestHandler,
     searchUsersHandler,
     sendFriendRequestHandler,
+    removeFriendHandler
 } from "./friend.controller";
 
 const friendRouter = Router();
@@ -17,5 +18,5 @@ friendRouter.get("/requests/received", authenticate, getReceivedFriendRequestsHa
 friendRouter.get("/requests/sent", authenticate, getSentFriendRequestsHandler);
 friendRouter.patch("/requests/:id", authenticate, respondToFriendRequestHandler);
 friendRouter.get("/", authenticate, getFriendsHandler);
-
+friendRouter.delete("/:friendId", authenticate, removeFriendHandler);
 export { friendRouter };
