@@ -40,7 +40,11 @@ export function AppLayout() {
             <header className="border-b border-white/10 bg-neutral-900">
                 <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
                     <Link to="/" className="text-2xl font-bold text-fuchsia-400">
-                        Mchichat
+                        <img
+                            src="/logo.png"
+                            alt="Mchichat"
+                            className="h-12 w-12 object-contain"
+                        />
                     </Link>
 
                     <nav className="flex items-center gap-4 text-sm">

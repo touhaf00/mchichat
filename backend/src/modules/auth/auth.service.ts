@@ -55,6 +55,9 @@ export async function registerUser(data: RegisterInput) {
             lastName: true,
             role: true,
             createdAt: true,
+            bio: true,
+            avatarUrl: true,
+            bannerUrl: true,
         },
     });
 
@@ -98,6 +101,9 @@ export async function loginUser(data: LoginInput) {
             username: user.username,
             firstName: user.firstName,
             lastName: user.lastName,
+            bio: user.bio,
+            avatarUrl: user.avatarUrl,
+            bannerUrl: user.bannerUrl,
             role: user.role,
             createdAt: user.createdAt,
         },
@@ -117,6 +123,9 @@ export async function getMe(userId: string) {
             role: true,
             createdAt: true,
             updatedAt: true,
+            bio: true,
+            avatarUrl: true,
+            bannerUrl: true,
         },
     });
 
