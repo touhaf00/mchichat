@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { createMessageSchema } from "./message.schema";
+import {createMessageSchema, updateMessageSchema} from "./message.schema";
 import {
     createMessage,
     deleteMessage,
@@ -197,44 +197,6 @@ export async function createMessageHandler(
     }
 }
 
-export async function updateMessageHandler(
-    req: Request,
-    res: Response,
-    next: NextFunction
-) {
-    try {
-        const userId = req.user?.userId;
-
-        if (!userId) {
-            return res.status(401).json({ message: "Non autorisé" });
-        }
-
-        const id = getStringParam(req.params.id, "Message id");
-
-        const content =
-            typeof req.body.content === "string" ? req.body.content.trim() : "";
-
-        if (!content) {
-            return res.status(400).json({
-                message: "Le message ne peut pas être vide",
-            });
-        }
-
-        const message = await updateMessage(id, userId, content);
-
-        getIO()
-            .to(`salon:${message.salonId}`)
-            .emit("salon_message_updated", message);
-
-        return res.status(200).json({
-            message: "Message modifié avec succès",
-            updatedMessage: message,
-        });
-    } catch (err) {
-        next(err);
-    }
-}
-
 export async function deleteMessageHandler(
     req: Request,
     res: Response,
@@ -251,6 +213,36 @@ export async function deleteMessageHandler(
         const result = await deleteMessage(id, userId);
 
         return res.status(200).json(result);
+    } catch (err) {
+        next(err);
+    }
+}
+
+export async function updateMessageHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    try {
+        const userId = req.user?.userId;
+
+        if (!userId) {
+            return res.status(401).json({ message: "Non autorisé" });
+        }
+
+        const id = getStringParam(req.params.id, "Message id");
+        const data = updateMessageSchema.parse(req.body);
+
+        const message = await updateMessage(id, userId, data.content);
+
+        getIO()
+            .to(`salon:${message.salonId}`)
+            .emit("salon_message_updated", message);
+
+        return res.status(200).json({
+            message: "Message modifié avec succès",
+            updatedMessage: message,
+        });
     } catch (err) {
         next(err);
     }

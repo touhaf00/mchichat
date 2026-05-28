@@ -22,3 +22,5 @@ export const updateMessageSchema = z.object({
 });
 
 export type CreateMessageInput = z.infer<typeof createMessageSchema>;
+
+export type UpdateMessageInput = z.infer<typeof updateMessageSchema>;

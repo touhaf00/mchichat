@@ -330,3 +330,43 @@ export async function deletePrivateMessage(messageId: string, userId: string) {
         message: "Message privé supprimé avec succès",
     };
 }
+
+export async function updatePrivateMessage(
+    messageId: string,
+    userId: string,
+    content: string
+) {
+    const message = await prisma.privateMessage.findUnique({
+        where: { id: messageId },
+    });
+
+    if (!message) {
+        throw new Error("Message introuvable");
+    }
+
+    if (message.authorId !== userId) {
+        throw new Error("Non autorisé");
+    }
+
+    if (!content.trim()) {
+        throw new Error("Le message ne peut pas être vide");
+    }
+
+    return prisma.privateMessage.update({
+        where: { id: messageId },
+        data: {
+            content: content.trim(),
+        },
+        include: {
+            author: {
+                select: {
+                    id: true,
+                    username: true,
+                    firstName: true,
+                    lastName: true,
+                    avatarUrl: true,
+                },
+            },
+        },
+    });
+}

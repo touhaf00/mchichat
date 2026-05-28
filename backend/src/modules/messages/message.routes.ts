@@ -15,5 +15,5 @@ messageRouter.get("/salon/:salonId", authenticate, getMessages);
 messageRouter.post("/", authenticate, uploadMessageAttachment.single("attachment"), createMessageHandler);
 messageRouter.put("/:id", authenticate, updateMessageHandler);
 messageRouter.delete("/:id", authenticate, deleteMessageHandler);
-
+messageRouter.patch("/:id", authenticate, updateMessageHandler);
 export { messageRouter };

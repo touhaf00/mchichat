@@ -10,6 +10,7 @@ import {
     deletePrivateMessage,
     getPrivateConversations,
     getPrivateMessages,
+    updatePrivateMessage,
 } from "./privateMessage.service";
 import { getIO } from "../../lib/socket";
 import fs from "fs";
@@ -271,5 +272,35 @@ export async function deletePrivateMessageHandler(
         return res.status(200).json(result);
     } catch (error) {
         next(error);
+    }
+}
+
+export async function updatePrivateMessageHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    try {
+        const userId = req.user?.userId;
+
+        if (!userId) {
+            return res.status(401).json({ message: "Non autorisé" });
+        }
+
+        const messageId = getStringParam(req.params.id, "Message id");
+        const content = String(req.body.content || "").trim();
+
+        const message = await updatePrivateMessage(messageId, userId, content);
+
+        getIO()
+            .to(`private:${message.conversationId}`)
+            .emit("private_message_updated", message);
+
+        return res.status(200).json({
+            message: "Message modifié avec succès",
+            updatedMessage: message,
+        });
+    } catch (err) {
+        next(err);
     }
 }

@@ -6,6 +6,7 @@ import {
     deletePrivateMessageHandler,
     getPrivateConversationsHandler,
     getPrivateMessagesHandler,
+    updatePrivateMessageHandler,
 } from "./privateMessage.controller";
 import { uploadMessageAttachment } from "../../middlewares/messageUpload.middleware";
 
@@ -40,6 +41,12 @@ privateMessageRouter.delete(
     "/private-messages/:id",
     authenticate,
     deletePrivateMessageHandler
+);
+
+privateMessageRouter.patch(
+    "/private-messages/:id",
+    authenticate,
+    updatePrivateMessageHandler
 );
 
 export { privateMessageRouter };
