@@ -20,5 +20,5 @@ export const env = {
     JWT_EXPIRES_IN: getEnv("JWT_EXPIRES_IN"),
     CORS_ORIGIN: getEnv("CORS_ORIGIN"),
     GIPHY_API_KEY: getEnv("GIPHY_API_KEY"),
-    NEWSDATA_API_KEY: process.env.NEWSDATA_API_KEY || "",
+    NEWSDATA_API_KEY: getEnv("NEWSDATA_API_KEY"),
 };

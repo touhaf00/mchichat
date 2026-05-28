@@ -10,6 +10,7 @@ import { weatherRouter } from "../modules/weather/weather.routes";
 import { postRouter } from "../modules/posts/post.routes";
 import { profileRouter } from "../modules/profiles/profile.routes";
 import { newsRouter } from "../modules/news/news.routes";
+import {privateConversationRouter} from "../modules/private-messages/privateConversation.routes";
 
 const router = Router();
 
@@ -24,7 +25,8 @@ router.use("/salons", salonRouter);
 router.use("/messages", messageRouter);
 router.use("/giphy", giphyRouter);
 router.use("/friends", friendRouter);
-router.use("/", privateMessageRouter);
+router.use("/private-conversations", privateConversationRouter);
+router.use("/private-messages", privateMessageRouter);
 router.use("/", salonInvitationRouter);
 router.use("/weather", weatherRouter);
 router.use("/posts", postRouter);

@@ -11,7 +11,12 @@ export default function LoginPage() {
 
     return (
         <section className="mx-auto max-w-md">
-            <LoginForm />
+            <img
+                src="/logo.png"
+                alt="Mchichat"
+                className="mx-auto mb-6 h-24 w-24 object-contain"
+            />
+            <LoginForm/>
             <p className="mt-4 text-center text-white/70">
                 Pas encore de compte ?{" "}
                 <Link to="/register" className="text-fuchsia-400 hover:underline">

@@ -364,6 +364,11 @@ export default function HomePage() {
 
     return (
         <section className="mx-auto flex min-h-[70vh] max-w-3xl flex-col items-center justify-center text-center">
+            <img
+                src="/logo.png"
+                alt="Mchichat"
+                className="h-25 w-25 object-contain"
+            />
             <h1 className="text-5xl font-bold text-white">
                 Mchichat
             </h1>
