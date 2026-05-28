@@ -112,3 +112,17 @@ export async function deletePrivateMessageRequest(messageId: string) {
 
     return response.data;
 }
+
+export async function updatePrivateMessageRequest(
+    messageId: string,
+    content: string
+) {
+    const response = await api.patch<{
+        message: string;
+        updatedMessage: PrivateMessage;
+    }>(`/private-messages/${messageId}`, {
+        content,
+    });
+
+    return response.data;
+}
