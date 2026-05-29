@@ -2,8 +2,8 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-function getEnv(name: string): string {
-    const value = process.env[name];
+function getEnv(name: string, fallback?: string): string {
+    const value = process.env[name] || fallback;
 
     if (!value) {
         throw new Error(`Missing environment variable: ${name}`);
@@ -13,11 +13,11 @@ function getEnv(name: string): string {
 }
 
 export const env = {
-    PORT: getEnv("PORT"),
-    NODE_ENV: getEnv("NODE_ENV"),
+    PORT: getEnv("PORT", "5000"),
+    NODE_ENV: getEnv("NODE_ENV", "development"),
     DATABASE_URL: getEnv("DATABASE_URL"),
     JWT_ACCESS_SECRET: getEnv("JWT_ACCESS_SECRET"),
-    JWT_EXPIRES_IN: getEnv("JWT_EXPIRES_IN"),
+    JWT_EXPIRES_IN: getEnv("JWT_EXPIRES_IN", "1d"),
     CORS_ORIGIN: getEnv("CORS_ORIGIN"),
     GIPHY_API_KEY: getEnv("GIPHY_API_KEY"),
     NEWSDATA_API_KEY: getEnv("NEWSDATA_API_KEY"),

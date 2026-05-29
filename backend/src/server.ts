@@ -7,6 +7,6 @@ const server = http.createServer(app);
 
 initSocket(server);
 
-server.listen(env.PORT, () => {
-    console.log(`Mchichat API running on http://localhost:${env.PORT}`);
+server.listen(Number(env.PORT), "0.0.0.0", () => {
+    console.log(`Mchichat API running on port ${env.PORT}`);
 });
