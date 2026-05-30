@@ -28,19 +28,13 @@ app.use(
 app.use(
     cors({
         origin: (origin, callback) => {
-            if (!origin) {
-                callback(null, true);
-                return;
+            const isAllowed = !origin || allowedOrigins.includes(origin);
+
+            if (!isAllowed) {
+                console.warn(`Origine CORS refusée: ${origin}`);
             }
 
-            if (allowedOrigins.includes(origin)) {
-                callback(null, true);
-                return;
-            }
-
-            console.warn(`Origine CORS refusée: ${origin}`);
-
-            callback(null, false);
+            callback(null, isAllowed);
         },
         credentials: true,
     })
