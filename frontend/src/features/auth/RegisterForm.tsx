@@ -79,8 +79,8 @@ export function RegisterForm() {
             return;
         }
 
-        if (form.password.length < 6) {
-            setError("Le mot de passe doit contenir au moins 6 caractères.");
+        if (form.password.length < 8) {
+            setError("Le mot de passe doit contenir au moins 8 caractères.");
             return;
         }
 
@@ -95,7 +95,7 @@ export function RegisterForm() {
                 password: form.password,
             });
 
-            await login(data.token, data.user);
+            await login(data.accessToken, data.user);
             navigate("/");
         } catch (err: unknown) {
             setError(getRegisterErrorMessage(err));

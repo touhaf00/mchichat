@@ -11,6 +11,7 @@ import { postRouter } from "../modules/posts/post.routes";
 import { profileRouter } from "../modules/profiles/profile.routes";
 import { newsRouter } from "../modules/news/news.routes";
 import {privateConversationRouter} from "../modules/private-messages/privateConversation.routes";
+import { adminRouter } from "../modules/admin/admin.routes";
 
 const router = Router();
 
@@ -32,5 +33,6 @@ router.use("/weather", weatherRouter);
 router.use("/posts", postRouter);
 router.use("/profiles", profileRouter);
 router.use("/news", newsRouter);
+router.use(adminRouter);
 
 export { router };

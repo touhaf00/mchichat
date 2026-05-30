@@ -1,44 +1,32 @@
 import { api } from "../../lib/api";
+import type { User } from "./auth.types";
 
-export type AuthUser = {
-    id: string;
-    email: string;
-    username: string;
-    firstName: string;
-    lastName: string;
-    bio?: string | null;
-    avatarUrl?: string | null;
-    bannerUrl?: string | null;
-    role: string;
-    createdAt: string;
-    updatedAt?: string;
-};
-
-export type AuthResponse = {
+type AuthResponse = {
     message: string;
-    user: AuthUser;
-    token: string;
+    user: User;
+    accessToken: string;
 };
 
-export type RegisterPayload = {
+export async function loginRequest(payload: {
     email: string;
-    username: string;
     password: string;
+}) {
+    const response = await api.post<AuthResponse>("/auth/login", payload);
+    return response.data;
+}
+
+export async function registerRequest(payload: {
     firstName: string;
     lastName: string;
-};
-
-export type LoginPayload = {
+    username: string;
     email: string;
     password: string;
-};
-
-export async function registerRequest(payload: RegisterPayload) {
+}) {
     const response = await api.post<AuthResponse>("/auth/register", payload);
     return response.data;
 }
 
-export async function loginRequest(payload: LoginPayload) {
-    const response = await api.post<AuthResponse>("/auth/login", payload);
+export async function getMeRequest() {
+    const response = await api.get<{ user: User }>("/auth/me");
     return response.data;
 }

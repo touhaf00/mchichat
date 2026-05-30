@@ -67,6 +67,12 @@ export function AppLayout() {
                                     <NotificationBadge count={totalSalons + counts.salonMembershipRequests} />
                                 </NavLink>
 
+                                {user?.role === "ADMIN" && (
+                                    <NavLink to="/admin" className="hover:text-fuchsia-300">
+                                        Admin
+                                    </NavLink>
+                                )}
+
                                 <NavLink to="/profile" className="hover:text-fuchsia-300">
                                     Profil
                                 </NavLink>

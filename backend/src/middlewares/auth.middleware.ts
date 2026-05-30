@@ -1,6 +1,6 @@
-import {NextFunction, Request, Response} from "express";
+import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import {env} from "../config/env";
+import { env } from "../config/env";
 
 type AuthUser = {
     userId: string;
@@ -12,7 +12,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
     try {
         const authHeader = req.headers.authorization;
 
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        if (!authHeader?.startsWith("Bearer ")) {
             return res.status(401).json({
                 message: "Token manquant ou invalide",
             });
@@ -20,7 +20,9 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
 
         const token = authHeader.split(" ")[1];
 
-        req.user = jwt.verify(token, env.JWT_ACCESS_SECRET) as AuthUser;
+        const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as AuthUser;
+
+        req.user = decoded;
 
         next();
     } catch {

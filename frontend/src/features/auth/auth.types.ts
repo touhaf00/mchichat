@@ -7,8 +7,8 @@ export type User = {
     bio?: string | null;
     avatarUrl?: string | null;
     bannerUrl?: string | null;
-    role: string;
-    createdAt: string;
+    role: "USER" | "ADMIN";
+    createdAt?: string;
     updatedAt?: string;
 };
 

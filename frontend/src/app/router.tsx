@@ -13,7 +13,8 @@ import FriendsPage from "../pages/FriendsPage.tsx";
 import PrivateMessagesPage from "../pages/PrivateMessagesPage";
 import FeedPage from "../pages/FeedPage";
 import ProfileSettingsPage from "../pages/ProfileSettingsPage";
-
+import AdminPage from "../pages/AdminPage";
+import { AdminRoute } from "../components/ui/AdminRoute";
 
 export const router = createBrowserRouter([
     {
@@ -36,6 +37,14 @@ export const router = createBrowserRouter([
             {
                 element: <ProtectedRoute />,
                 children: [
+                    {
+                        path: "admin",
+                        element: (
+                            <AdminRoute>
+                                <AdminPage />
+                            </AdminRoute>
+                        ),
+                    },
                     {
                         path: "/profile/settings",
                         element: <ProfileSettingsPage />,

@@ -1,51 +1,61 @@
 import bcrypt from "bcrypt";
-import jwt, { type Secret, type SignOptions } from "jsonwebtoken";
 import { prisma } from "../../lib/prisma";
-import { env } from "../../config/env";
-import { LoginInput, RegisterInput } from "./auth.schema";
+import type { LoginInput, RegisterInput } from "./auth.schema";
+import { sanitizeString } from "../../utils/sanitize";
 
-type JwtPayload = {
-    userId: string;
+function publicUser(user: {
+    id: string;
     email: string;
+    username: string;
+    firstName: string;
+    lastName: string;
+    bio: string | null;
+    avatarUrl: string | null;
+    bannerUrl: string | null;
     role: string;
-};
-
-function generateAccessToken(payload: JwtPayload): string {
-    const secret: Secret = env.JWT_ACCESS_SECRET;
-
-    const options: SignOptions = {
-        expiresIn: env.JWT_EXPIRES_IN as SignOptions["expiresIn"],
+    createdAt: Date;
+    updatedAt: Date;
+}) {
+    return {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        bio: user.bio,
+        avatarUrl: user.avatarUrl,
+        bannerUrl: user.bannerUrl,
+        role: user.role,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
     };
-
-    return jwt.sign(payload, secret, options);
 }
 
 export async function registerUser(data: RegisterInput) {
-    const existingEmail = await prisma.user.findUnique({
-        where: { email: data.email },
+    const email = data.email.toLowerCase().trim();
+    const username = sanitizeString(data.username);
+    const firstName = sanitizeString(data.firstName);
+    const lastName = sanitizeString(data.lastName);
+
+    const existingUser = await prisma.user.findFirst({
+        where: {
+            OR: [{ email }, { username }],
+        },
     });
 
-    if (existingEmail) {
-        throw new Error("Cet email est déjà utilisé");
+    if (existingUser) {
+        throw new Error("Email ou nom d'utilisateur déjà utilisé");
     }
 
-    const existingUsername = await prisma.user.findUnique({
-        where: { username: data.username },
-    });
-
-    if (existingUsername) {
-        throw new Error("Ce nom d'utilisateur est déjà utilisé");
-    }
-
-    const passwordHash = await bcrypt.hash(data.password, 10);
+    const passwordHash = await bcrypt.hash(data.password, 12);
 
     const user = await prisma.user.create({
         data: {
-            email: data.email,
-            username: data.username,
+            email,
+            username,
+            firstName,
+            lastName,
             passwordHash,
-            firstName: data.firstName,
-            lastName: data.lastName,
         },
         select: {
             id: true,
@@ -53,79 +63,78 @@ export async function registerUser(data: RegisterInput) {
             username: true,
             firstName: true,
             lastName: true,
-            role: true,
-            createdAt: true,
             bio: true,
             avatarUrl: true,
             bannerUrl: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true,
         },
     });
 
-    const token = generateAccessToken({
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-    });
-
     return {
-        user,
-        token,
+        user: publicUser(user),
     };
 }
 
 export async function loginUser(data: LoginInput) {
+    const email = data.email.toLowerCase().trim();
+
     const user = await prisma.user.findUnique({
-        where: { email: data.email },
+        where: {
+            email,
+        },
+        select: {
+            id: true,
+            email: true,
+            username: true,
+            passwordHash: true,
+            firstName: true,
+            lastName: true,
+            bio: true,
+            avatarUrl: true,
+            bannerUrl: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true,
+        },
     });
 
     if (!user) {
-        throw new Error("Email ou mot de passe invalide");
+        throw new Error("Email ou mot de passe incorrect");
     }
 
-    const isPasswordValid = await bcrypt.compare(data.password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(
+        data.password,
+        user.passwordHash
+    );
 
     if (!isPasswordValid) {
-        throw new Error("Email ou mot de passe invalide");
+        throw new Error("Email ou mot de passe incorrect");
     }
 
-    const token = generateAccessToken({
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-    });
-
     return {
-        user: {
-            id: user.id,
-            email: user.email,
-            username: user.username,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            bio: user.bio,
-            avatarUrl: user.avatarUrl,
-            bannerUrl: user.bannerUrl,
-            role: user.role,
-            createdAt: user.createdAt,
-        },
-        token,
+        user: publicUser(user),
     };
 }
 
 export async function getMe(userId: string) {
     const user = await prisma.user.findUnique({
-        where: { id: userId },
+        where: {
+            id: userId,
+        },
         select: {
             id: true,
             email: true,
             username: true,
             firstName: true,
             lastName: true,
-            role: true,
-            createdAt: true,
-            updatedAt: true,
             bio: true,
             avatarUrl: true,
             bannerUrl: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true,
         },
     });
 
@@ -133,5 +142,5 @@ export async function getMe(userId: string) {
         throw new Error("Utilisateur introuvable");
     }
 
-    return user;
+    return publicUser(user);
 }

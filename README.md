@@ -38,12 +38,23 @@ Le projet s'inspire des fonctionnalités présentes dans plusieurs plateformes m
 
 ## Fonctionnalités principales
 
+### Administration
+
+* Tableau de bord administrateur
+* Gestion des utilisateurs
+* Attribution et retrait des rôles administrateur
+* Suppression de comptes utilisateurs
+* Statistiques globales de la plateforme
+
 ### Authentification
 
 * Inscription
 * Connexion
 * Déconnexion
 * Authentification JWT
+* Refresh Token sécurisé
+* Protection des routes privées
+* Gestion des rôles utilisateur et administrateur
 
 ### Gestion du profil
 
@@ -135,6 +146,8 @@ TailwindCSS permet de construire rapidement une interface moderne tout en conser
 * Express.js
 * TypeScript
 * Prisma ORM
+* Prisma Client
+* Cookie-parser
 * Socket.IO
 * JWT
 * Zod
@@ -145,6 +158,9 @@ TailwindCSS permet de construire rapidement une interface moderne tout en conser
 * FFmpeg Static
 * Swagger UI Express
 * Swagger JSDoc
+* Bcrypt
+* Cookie Parser
+* CORS
 
 ### Pourquoi ce choix ?
 
@@ -296,7 +312,11 @@ SHADOW_DATABASE_URL="mysql://root:password@localhost:3306/mchichat_shadow"
 
 JWT_ACCESS_SECRET="ton_secret_securisé_JWT"
 
-JWT_EXPIRES_IN="1d"
+JWT_ACCESS_EXPIRES_IN="15m"
+
+JWT_REFRESH_SECRET="ton_refresh_secret_securisé"
+
+JWT_REFRESH_EXPIRES_IN="1d"
 
 CORS_ORIGIN="http://localhost:5173"
 
@@ -397,6 +417,15 @@ npm run preview
 
 # Concepts du module mis en œuvre
 
+## Architecture client / serveur
+
+Le projet est construit selon une architecture client / serveur :
+
+* Frontend React responsable de l'interface utilisateur ;
+* Backend Express responsable de la logique métier ;
+* Base de données MySQL responsable du stockage des données ;
+* Communication via API REST et Socket.IO.
+
 ## JSON
 
 Les échanges entre le frontend et le backend utilisent exclusivement le format JSON.
@@ -419,6 +448,30 @@ Le projet implémente plusieurs mécanismes de sécurité :
 * Validation des données avec Zod
 * Helmet
 * Express Rate Limit
+* Refresh Tokens sécurisés
+* Gestion des rôles ADMIN / USER
+* Protection CORS
+* Validation des types de fichiers envoyés
+* Limitation de la taille des fichiers uploadés
+* Protection des routes sensibles par middleware
+* Protection contre les accès non autorisés aux ressources administrateur
+
+## Temps réel
+
+Le projet utilise Socket.IO afin de permettre :
+
+* les notifications en temps réel ;
+* la réception instantanée des messages ;
+* les mises à jour automatiques des salons ;
+* la synchronisation des événements entre utilisateurs.
+
+## Documentation d'API
+
+Le projet intègre Swagger afin de :
+
+* documenter les endpoints ;
+* tester les routes directement depuis le navigateur ;
+* documenter les schémas d'entrée et de sortie.
 
 ## Consommation de services externes
 
@@ -444,11 +497,22 @@ https://mchichat.onrender.com/api-docs
 
 Les principales routes sont listées ci-dessous.
 
+## Administration
+
+```txt
+[GET] /api/v1/admin/stats
+[GET] /api/v1/admin/users
+[PATCH] /api/v1/admin/users/:userId/role
+[DELETE] /api/v1/admin/users/:userId
+```
+
 ## Authentification
 
 ```txt
 [POST] /api/v1/auth/register
 [POST] /api/v1/auth/login
+[POST] /api/v1/auth/refresh
+[POST] /api/v1/auth/logout
 [GET] /api/v1/auth/me
 ```
 
@@ -591,3 +655,14 @@ Le projet est accessible en ligne :
 * Swagger : https://mchichat.onrender.com/api-docs
 
 Mchichat a permis de mettre en pratique l'ensemble des notions abordées durant le module : REST, JSON, sécurité, architecture web moderne, APIs externes et documentation de services.
+
+## Perspectives d'amélioration
+
+Plusieurs évolutions sont envisageables :
+
+* stockage des médias sur un service cloud dédié (Cloudinary, AWS S3) ;
+* mise en place d'une modération avancée ;
+* ajout des appels audio et vidéo ;
+* création d'applications mobiles Android et iOS ;
+* amélioration du système de notifications ;
+* ajout d'un moteur de recherche global.

@@ -70,7 +70,7 @@ export function LoginForm() {
                 password: form.password,
             });
 
-            await login(data.token, data.user);
+            await login(data.accessToken, data.user);
             navigate("/");
         } catch (err: unknown) {
             setError(getLoginErrorMessage(err));
