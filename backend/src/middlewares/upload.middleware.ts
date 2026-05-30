@@ -33,7 +33,7 @@ const storage = multer.diskStorage({
 export const uploadPostMedia = multer({
     storage,
     limits: {
-        fileSize: 25 * 1024 * 1024,
+        fileSize: 200 * 1024 * 1024,
         files: 1,
     },
     fileFilter: (_req, file, callback) => {

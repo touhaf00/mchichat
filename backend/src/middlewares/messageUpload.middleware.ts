@@ -39,7 +39,7 @@ const storage = multer.diskStorage({
 export const uploadMessageAttachment = multer({
     storage,
     limits: {
-        fileSize: 25 * 1024 * 1024,
+        fileSize: 500 * 1024 * 1024,
         files: 1,
     },
     fileFilter: (_req, file, callback) => {
