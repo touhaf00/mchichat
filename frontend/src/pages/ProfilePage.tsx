@@ -371,8 +371,7 @@ export default function ProfilePage() {
 
                                 <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-4 py-2">
                                     <Users className="h-4 w-4" />
-                                    {(profile.user._count?.memberships || 0) +
-                                        (profile.user._count?.ownedSalons || 0)} salons
+                                    {profile.user._count?.memberships || 0} salons
                                 </span>
                             </div>
                         </div>

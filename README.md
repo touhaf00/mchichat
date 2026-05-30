@@ -1,539 +1,375 @@
 # Mchichat
 
-## Projet Web Full Stack
+## Equipe
 
-Mchichat est une application web full stack moderne de communication et de réseau social développée dans le cadre du module de conception.
+* Touhaf Aya
+* Douimia Abdelmoughit
 
-Le projet combine :
-- une authentification sécurisée,
-- une messagerie temps réel,
-- des salons publics et privés,
-- des conversations privées,
-- un système d’amis,
-- un fil de publications,
-- le partage de médias,
-- les messages vocaux,
-- les profils personnalisables,
-- les notifications temps réel,
-- des API externes,
-- un mode clair / sombre.
+### Encadrement pédagogique
+
+Projet réalisé dans le cadre du module **Conception-Web Services**.
+
+Encadrants :
+
+* M. Clément Fasquel
+* M. Axel Soupé
 
 ---
 
-## Encadrement pédagogique
+# Présentation du projet
 
-Projet réalisé dans le cadre du module de conception.
+Mchichat est une application web fullstack de communication et de réseau social développée dans le cadre du module Conception-Web Services .
 
-### Encadrants
+Le nom est inspiré du dialecte marocain, qui signifie chats.
 
-- M. Clément Fasquel
-- M. Axel Soupé
+L'objectif du projet est de proposer une plateforme permettant aux utilisateurs de :
 
----
+* créer un compte ;
+* personnaliser leur profil ;
+* publier du contenu ;
+* rejoindre ou créer des salons ;
+* communiquer via une messagerie privée ;
+* ajouter des amis ;
+* partager des images, fichiers et messages vocaux ;
+* consulter les actualités mondiales ;
+* consulter les informations météorologiques.
 
-## Auteurs
-
-- Touhaf Aya
-- Douimia Abdelmoughit
-
----
-
-## Technologies utilisées
-
-### Frontend
-
-- React
-- TypeScript
-- Vite
-- TailwindCSS
-- Axios
-- React Router DOM
-- Socket.IO Client
-- Lucide React
-
-### Backend
-
-- Node.js
-- Express.js
-- TypeScript
-- Prisma ORM
-- MySQL
-- Socket.IO
-- JWT Authentication
-- Multer
-- Fluent FFmpeg
-- FFmpeg Static
-- Zod
-- Helmet
-- CORS
-- Express Rate Limit
-
----
+Le projet s'inspire des fonctionnalités présentes dans plusieurs plateformes modernes de communication et de réseaux sociaux.
 
 ## Fonctionnalités principales
 
 ### Authentification
 
-- Inscription
-- Connexion sécurisée avec JWT
-- Récupération de l’utilisateur connecté
-- Protection des routes
-- Gestion du token côté frontend
+* Inscription
+* Connexion
+* Déconnexion
+* Authentification JWT
 
-### Profils utilisateurs
+### Gestion du profil
 
-- Consultation du profil
-- Avatar personnalisé
-- Bannière personnalisée
-- Bio
-- Modification du profil
-- Suppression du compte
+* Modification du profil
+* Avatar personnalisé
+* Bannière personnalisée
+* Biographie
+* Suppression du compte
 
-### Système d’amis
+### Réseau social
 
-- Recherche d’utilisateurs
-- Envoi de demande d’ami
-- Acceptation ou refus des demandes
-- Suppression d’un ami
-- Notifications temps réel liées aux demandes d’amis
+* Création de publications
+* Modification de publications
+* Suppression de publications
+* Likes
+* Commentaires
+
+### Gestion des amis
+
+* Envoi de demandes d'amis
+* Acceptation de demandes
+* Suppression d'amis
 
 ### Salons
 
-- Création de salons publics ou privés
-- Modification d’un salon
-- Suppression d’un salon
-- Liste des membres
-- Invitations aux salons privés
-- Demandes d’adhésion aux salons publics
-- Acceptation ou refus des demandes d’adhésion
+* Création de salons
+* Modification de salons
+* Suppression de salons
+* Gestion des membres
 
-### Messages dans les salons
+### Messagerie
 
-- Envoi de messages texte
-- Envoi de fichiers
-- Envoi d’images
-- Envoi de vidéos
-- Envoi de GIFs
-- Envoi de messages vocaux
-- Modification de messages
-- Suppression de messages
-- Réception temps réel avec Socket.IO
+* Messages de salon
+* Messages privés
+* Modification de messages
+* Suppression de messages
 
-### Conversations privées
+### Médias
 
-- Création d’une conversation privée entre amis
-- Messages privés en temps réel
-- Envoi de texte
-- Envoi de fichiers
-- Envoi de GIFs
-- Envoi de messages vocaux
-- Modification de messages privés
-- Suppression de messages privés
+* Images
+* Fichiers
+* Messages vocaux
 
-### Publications sociales
+### APIs externes
 
-- Création de posts
-- Ajout d’image ou vidéo
-- Modification de posts
-- Suppression de posts
-- Likes
-- Commentaires
-- Commentaires avec GIFs
-- Fil d’actualité social
+* Actualités mondiales via NewsData.io
+* GIFs via Giphy
+* Informations météorologiques via Open-Meteo
 
-### Médias et audio
+### Interface
 
-- Upload de fichiers avec Multer
-- Upload d’avatars et bannières
-- Upload de médias de posts
-- Upload de pièces jointes dans les messages
-- Enregistrement vocal côté navigateur
-- Visualisation des fréquences pendant l’enregistrement
-- Player audio personnalisé
-- Conversion audio serveur avec FFmpeg
-- Compatibilité tous les browser
+* Responsive design
+* Mode clair
+* Mode sombre
 
-### API externes
+### Documentation API
 
-- Giphy API pour les GIFs
-- NewsData.io pour les actualités
-- Open-Meteo / géolocalisation inverse pour la météo
-
-### Interface utilisateur
-
-- Interface responsive
-- Mode clair / sombre
-- Notifications visuelles
-- Navigation protégée
-- Design avec TailwindCSS
+* Documentation Swagger interactive
+* Test des endpoints directement depuis le navigateur
+* Authentification JWT via Swagger
 
 ---
 
-## Architecture du projet
+# Technologies utilisées
 
-```txt
+## Frontend
 
-backend/
-   ├── prisma/
-   │
-   ├── src/
-   │   ├── config/
-   │   ├── lib/
-   │   ├── middlewares/
-   │   ├── modules/
-   │   │   ├── auth/
-   │   │   ├── friends/
-   │   │   ├── giphy/
-   │   │   ├── messages/
-   │   │   ├── news/
-   │   │   ├── posts/
-   │   │   ├── private-messages/
-   │   │   ├── profiles/
-   │   │   ├── salon-invitations/
-   │   │   ├── salons/
-   │   │   └── weather/
-   │   │
-   │   ├── routes/
-   │   ├── types/
-   │   ├── utils/
-   │   ├── app.ts
-   │   └── server.ts
-```
-Le backend suit une architecture modulaire organisée par :
-controllers,
-services,
-routes,
-schemas.
+* React
+* TypeScript
+* Vite
+* TailwindCSS
+* React Router DOM
+* Axios
+* Socket.IO Client
 
-```txt
-frontend/
-   ├── public/
-   │
-   ├── src/
-   │   ├── app/
-   │   │
-   │   ├── assets/
-   │   │
-   │   ├── components/
-   │   │   ├── layout/
-   │   │   │
-   │   │   └── ui/
-   │   │
-   │   ├── features/
-   │   │   ├── auth/
-   │   │   │
-   │   │   ├── feed/
-   │   │   │
-   │   │   ├── friends/
-   │   │   │
-   │   │   ├── giphy/
-   │   │   │
-   │   │   ├── messages/
-   │   │   │
-   │   │   ├── news/
-   │   │   │
-   │   │   ├── notifications/
-   │   │   │
-   │   │   ├── private-messages/
-   │   │   │
-   │   │   ├── profiles/
-   │   │   │
-   │   │   ├── salon-invitations/
-   │   │   │
-   │   │   ├── salons/
-   │   │   │
-   │   │   ├── theme/
-   │   │   │
-   │   │   ├── voice/
-   │   │   │
-   │   │   └── weather/
-   │   │
-   │   ├── lib/
-   │   │
-   │   ├── pages/
-   │   │
-   │   ├── App.css
-   │   ├── App.tsx
-   │   ├── index.css
-   │   ├── main.tsx
-   │   └── vite-env.d.ts
+### Pourquoi ce choix ?
 
-````
-Le frontend suit une architecture feature-based
+React offre une architecture moderne basée sur les composants et permet de construire une interface dynamique et réactive.
+
+TypeScript apporte un typage fort permettant de réduire les erreurs de développement.
+
+TailwindCSS permet de construire rapidement une interface moderne tout en conservant une bonne maintenabilité.
+
+---
+
+## Backend
+
+* Node.js
+* Express.js
+* TypeScript
+* Prisma ORM
+* Socket.IO
+* JWT
+* Zod
+* Multer
+* Helmet
+* Express Rate Limit
+* Fluent FFmpeg
+* FFmpeg Static
+* Swagger UI Express
+* Swagger JSDoc
+
+### Pourquoi ce choix ?
+
+Express est un framework léger permettant de développer rapidement des APIs REST.
+
+Prisma simplifie l'accès à la base de données tout en apportant un typage fort.
+
+Socket.IO permet la communication temps réel entre les utilisateurs.
+
+JWT facilite la sécurisation des routes de l'application.
 
 ---
 
 ## Base de données
 
-Le projet utilise MySQL avec Prisma ORM.
+* MySQL 8
 
-### Principaux modèles Prisma
+### Hébergement de la base
 
-* User
-* Salon
-* SalonMember
-* Message
-* Friendship
-* PrivateConversation
-* PrivateConversationParticipant
-* PrivateMessage
-* SalonInvitation
-* SalonMembershipRequest
-* Post
-* PostLike
-* PostComment
+* Aiven MySQL Cloud
 
 ---
 
-## Installation du projet
+## Hébergement
 
-### Prérequis
+### Frontend
 
-Avant de commencer, installer :
+* Netlify
+
+### Backend
+
+* Render
+
+### Base de données
+
+* Aiven
+
+---
+
+# Gestion de projet
+
+## Outils utilisés
+
+* Git
+* GitHub
+* WebStorm
+* Prisma Studio
+* MySQL
+* Netlify
+* Render
+* Aiven
+
+Le projet a été développé de manière incrémentale avec l'utilisation régulière de commits Git permettant le suivi des différentes fonctionnalités développées.
+
+---
+
+# Expérience générale
+
+Avant ce projet, l'équipe possédait des connaissances en :
+
+* HTML
+* CSS
+* JavaScript
+* React
+* SQL
+
+Ce projet a permis d'approfondir :
+
+* TypeScript
+* Express
+* Prisma
+* JWT
+* Socket.IO
+* APIs REST
+* Hébergement Cloud
+* Gestion des médias
+* Architecture Full Stack
+
+Nous continuerons probablement à utiliser React, TypeScript, Express et Prisma dans nos futurs projets en raison de leur simplicité d'utilisation et de leur efficacité.
+
+---
+
+# Installation
+
+## Système recommandé
+
+Le projet fonctionne sous :
+
+* Windows
+* Linux
+* macOS
+
+Linux ou macOS sont recommandés pour une meilleure compatibilité avec FFmpeg.
+
+---
+
+## Prérequis
+
+Installer :
 
 * Node.js
 * npm
+* Git
 * MySQL
 * FFmpeg
-* Git
+
+Le projet peut fonctionner soit avec une base MySQL locale,
+soit avec une base MySQL hébergée sur Aiven.
 
 ---
 
-## 1. Cloner le dépôt
+## Clonage du projet
 
 ```bash
-git clone https://gitlab.dpt-info.univ-littoral.fr/touhaf.aya/mchichat.git
+git clone https://gitlab.dpt-info.univ-littoral.fr/touhaf.aya/mchichat
 cd mchichat
 ```
 
 ---
 
-## 2. Créer la base de données MySQL
-
-Se connecter à MySQL :
-
-```bash
-mysql -u root -p
-```
-
-Créer la base de données principale :
-
-```sql
-CREATE DATABASE mchichat;
-```
-
-Créer la base de données shadow utilisée par Prisma :
-
-```sql
-CREATE DATABASE mchichat_shadow;
-```
-
----
-
-# Installation Backend
-
-## 1. Accéder au backend
+## Installation du Backend
 
 ```bash
 cd backend
-```
-
-## 2. Installer les dépendances
-
-```bash
 npm install
 ```
 
-## 3. Installer Socket.IO côté backend
+Installation des dépendances utilisées durant le projet :
 
 ```bash
 npm install socket.io
-```
-
-## 4. Installer Multer pour les uploads
-
-```bash
 npm install multer
-npm install -D @types/multer
-```
-
-## 5. Installer Fluent FFmpeg
-
-```bash
-npm install fluent-ffmpeg
-npm install -D @types/fluent-ffmpeg
-```
-
-## 6. Installer FFmpeg Static
-
-```bash
 npm install ffmpeg-static
-```
-
-## 7. Corriger les vulnérabilités npm si nécessaire
-
-```bash
+npm install fluent-ffmpeg
+npm install -D @types/multer @types/fluent-ffmpeg
 npm audit fix
 ```
 
----
+Créer un fichier `.env`.
 
-## Installation de FFmpeg sur la machine
-
-Même si le projet utilise `ffmpeg-static`, il est recommandé d’avoir FFmpeg installé sur la machine.
-
-### macOS
-
-```bash
-brew install ffmpeg
-```
-
-### Linux / Ubuntu
-
-```bash
-sudo apt update
-sudo apt install ffmpeg
-```
-
-### Windows
-
-Télécharger FFmpeg depuis le site officiel :
-
-```txt
-https://ffmpeg.org/download.html
-```
-
-Puis ajouter FFmpeg au PATH système.
-
----
-
-## Configuration Backend
-
-Créer un fichier `.env` dans le dossier `backend` :
+Exemple :
 
 ```env
 PORT=5000
-
-NODE_ENV=development
 
 DATABASE_URL="mysql://root:password@localhost:3306/mchichat"
 
 SHADOW_DATABASE_URL="mysql://root:password@localhost:3306/mchichat_shadow"
 
-JWT_ACCESS_SECRET="ton_ACCESS_SECRET"
+JWT_ACCESS_SECRET="ton_secret_securisé_JWT"
 
 JWT_EXPIRES_IN="1d"
 
 CORS_ORIGIN="http://localhost:5173"
 
-GIPHY_API_KEY="ta_giphy_api_key"
+GIPHY_API_KEY="ta_cle_API"
 
-NEWSDATA_API_KEY="ta_newsdata_api_key"
+NEWSDATA_API_KEY="ta_cle_API"
 ```
 
-### Générer un secret JWT robuste
+Créer les bases :
 
-```bash
-node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```sql
+CREATE DATABASE mchichat;
+CREATE DATABASE mchichat_shadow;
 ```
 
----
-
-## Prisma
-
-### Générer Prisma Client
+Initialiser Prisma :
 
 ```bash
 npx prisma generate
-```
-
-### Lancer les migrations
-
-```bash
 npx prisma migrate dev
-```
-
-### Réinitialiser la base de données en cas de besoin
-
-```bash
-npx prisma migrate reset
 ```
 
 ---
 
-## Lancer le backend
+## Installation du Frontend
 
 ```bash
+cd frontend
+npm install
+```
+
+Installation des dépendances utilisées durant le projet :
+
+```bash
+npm install socket.io-client
+npm audit fix
+```
+
+Créer un fichier `.env`.
+
+```env
+VITE_API_BASE_URL=http://localhost:5000/api/v1
+
+VITE_SOCKET_URL=http://localhost:5000
+```
+
+---
+
+# Utilisation
+
+## Lancer le Backend
+
+```bash
+cd backend
 npm run dev
 ```
 
-Le backend sera disponible sur :
+API disponible sur :
 
 ```txt
 http://localhost:5000
 ```
 
-Endpoint de test :
-
-```txt
-http://localhost:5000/api/v1/health
-```
-
 ---
 
-# Installation Frontend
-
-## 1. Accéder au frontend
+## Lancer le Frontend
 
 ```bash
 cd frontend
-```
-
-Si vous êtes dans le dossier backend :
-
-```bash
-cd ../frontend
-```
-
-## 2. Installer les dépendances
-
-```bash
-npm install
-```
-
-## 3. Installer Socket.IO côté frontend
-
-```bash
-npm install socket.io-client
-```
-
-## 4. Corriger les vulnérabilités npm si nécessaire
-
-```bash
-npm audit fix
-```
-
----
-
-## Configuration Frontend
-
-Créer un fichier `.env` dans le dossier `frontend` :
-
-```env
-VITE_API_BASE_URL="http://localhost:5000/api/v1"
-
-VITE_SOCKET_URL="http://localhost:5000"
-```
-
----
-
-## Lancer le frontend
-
-```bash
 npm run dev
 ```
 
-Le frontend sera disponible sur :
+Application disponible sur :
 
 ```txt
 http://localhost:5173
@@ -541,170 +377,217 @@ http://localhost:5173
 
 ---
 
-# Scripts disponibles
+## Build de production
 
-## Backend
-
-```bash
-npm run dev
-```
-
-les commandes suivantes peuvent aussi être utilisées :
+### Backend
 
 ```bash
 npm run build
 npm run start
 ```
 
-## Frontend
+### Frontend
 
 ```bash
-npm run dev
 npm run build
 npm run preview
 ```
 
 ---
 
-# Utilisation générale
+# Concepts du module mis en œuvre
 
-1. Lancer MySQL.
-2. Lancer le backend :
+## JSON
 
-```bash
-cd backend
-npm run dev
-```
+Les échanges entre le frontend et le backend utilisent exclusivement le format JSON.
 
-3. Lancer le frontend dans un deuxième terminal :
+## REST
 
-```bash
-cd frontend
-npm run dev
-```
+L'API implémente les verbes HTTP étudiés durant le module :
 
-4. Ouvrir l’application :
+* GET
+* POST
+* PUT
+* DELETE
 
-```txt
-http://localhost:5173
-```
+## Sécurité
 
----
+Le projet implémente plusieurs mécanismes de sécurité :
 
-# Sécurité
-
-Le projet inclut plusieurs mécanismes de sécurité :
-
-* Authentification JWT
-* Middleware de protection des routes
+* JWT
+* Hashage des mots de passe avec bcrypt
 * Validation des données avec Zod
-* CORS configuré
 * Helmet
-* Rate limiting
-* Vérification des permissions utilisateur
-* Contrôle des accès aux salons privés
-* Contrôle des auteurs pour modifier ou supprimer messages/posts
+* Express Rate Limit
+
+## Consommation de services externes
+
+Le backend consomme plusieurs APIs externes :
+
+* NewsData.io
+* Giphy
+* Open-Meteo
 
 ---
 
-# Temps réel
+# Routes d'API
 
-Socket.IO est utilisé pour :
+Le projet dispose d'une documentation Swagger interactive.
 
-* réception des messages de salon,
-* réception des messages privés,
-* notifications de demandes d’amis,
-* notifications d’invitations aux salons,
-* notifications de likes,
-* notifications de commentaires,
-* demandes d’adhésion aux salons.
+### Documentation locale
 
----
+http://localhost:5000/api-docs
 
-# Gestion des uploads
+### Documentation en production
 
-Les fichiers sont stockés dans le dossier :
+https://mchichat.onrender.com/api-docs
+
+Les principales routes sont listées ci-dessous.
+
+## Authentification
 
 ```txt
-backend/uploads/
+[POST] /api/v1/auth/register
+[POST] /api/v1/auth/login
+[GET] /api/v1/auth/me
 ```
 
-Types d’uploads présents dans le projet :
+## Profil
 
 ```txt
-backend/uploads/messages/
-backend/uploads/posts/
-backend/uploads/profiles/
+[GET] /api/v1/profiles/:username
+[PUT] /api/v1/profiles/me/settings
+[DELETE] /api/v1/profiles/me
 ```
 
-Les uploads sont gérés avec Multer.
+## Amis
+
+```txt
+[GET] /api/v1/friends/search
+[POST] /api/v1/friends/requests
+[GET] /api/v1/friends/requests/received
+[GET] /api/v1/friends/requests/sent
+[PATCH] /api/v1/friends/requests/:requestId
+[GET] /api/v1/friends
+[DELETE] /api/v1/friends/:friendId
+```
+
+## Invitations/ demandes salons 
+
+```txt
+[POST] /api/v1/salons/:id/membership-requests
+[GET] /api/v1/salons/membership-requests
+[POST] /api/v1/salons/membership-requests/:requestId/accept
+[POST] /api/v1/salons/membership-requests/:requestId/reject
+[POST] /api/v1/salons/:id/invite
+[GET] /api/v1/salon-invitations
+[POST] /api/v1/salon-invitations/:id/accept
+[POST] /api/v1/salon-invitations/:id/reject
+```
+
+## Salons
+
+```txt
+[GET] /api/v1/salons
+[POST] /api/v1/salons
+[PUT] /api/v1/salons/:id
+[DELETE] /api/v1/salons/:id
+```
+
+## Messages de salon
+
+```txt
+[GET] /api/v1/messages/salon/:id
+[POST] /api/v1/messages
+[PATCH] /api/v1/messages/:id
+[DELETE] /api/v1/messages/:id
+```
+
+## Conversations privées
+
+```txt
+[GET] /api/v1/private-conversations
+[POST] /api/v1/private-conversations
+[GET] /api/v1/private-conversations/:id/messages
+[POST] /api/v1/private-conversations/:id/messages
+[PATCH] /api/v1/private-messages/:id
+[DELETE] /api/v1/private-messages/:id
+```
+
+## Publications
+
+```txt
+[GET] /api/v1/posts
+[POST] /api/v1/posts
+[PATCH] /api/v1/posts/:id
+[DELETE] /api/v1/posts/:id
+```
+
+## Actualités
+
+```txt
+[GET] /api/v1/news
+```
+
+## Météo
+
+```txt
+[GET] /api/v1/weather
+```
+
+## GIFs
+
+```txt
+[GET] /api/v1/giphy/search?q=cat
+```
 
 ---
 
-# Gestion audio
+# Déploiement
 
-Le projet gère les messages vocaux avec :
+Le projet est déployé sur des services cloud avec le dépôt GitHub : https://github.com/touhaf00/mchichat.
 
-* MediaRecorder côté frontend,
-* visualisation des fréquences,
-* création d’un fichier audio,
-* upload vers le backend,
-* conversion avec Fluent FFmpeg,
-* lecture avec un player personnalisé.
+## Frontend
 
-Cette logique permet une meilleure compatibilité entre les browsers.
+Netlify
 
----
+https://mchichat.netlify.app
 
-# API externes utilisées
+## Backend
 
-## Giphy
+Render
 
-Utilisée pour rechercher et envoyer des GIFs.
+https://mchichat.onrender.com
 
-## NewsData.io
+## Base de données
 
-Utilisée pour afficher des actualités dans le fil.
+Aiven MySQL
 
-## Open-Meteo
+## Documentation API
 
-Utilisée pour afficher la météo locale.
+Swagger
+
+https://mchichat.onrender.com/api-docs
 
 ---
 
-# Fonctionnalités avancées réalisées
+# Notes finales
 
-* Application full stack complète
-* Architecture modulaire backend
-* Architecture feature-based frontend
-* Authentification JWT
-* Messagerie temps réel
-* Conversations privées
-* Salons publics et privés
-* Upload multimédia
-* Messages vocaux
-* Conversion audio
-* Feed social
-* Profils personnalisés
-* Système d’amis
-* Notifications temps réel
-* Light / Dark mode
-* APIs externes
-* Prisma ORM avec MySQL
+Le projet respecte les objectifs du module Conception-Web Services :
 
----
+* conception d'une API REST complète ;
+* consommation des services via une interface React ;
+* authentification JWT ;
+* documentation Swagger ;
+* consommation d'APIs externes ;
+* utilisation d'une base de données relationnelle MySQL ;
+* communication temps réel entre utilisateurs grâce à Socket.IO ;
+* déploiement cloud complet.
 
-# Conclusion
+Le projet est accessible en ligne :
 
-Mchichat est une application web full stack complète mettant en œuvre des notions avancées de conception web.
+* Frontend : https://mchichat.netlify.app
+* Backend : https://mchichat.onrender.com
+* Swagger : https://mchichat.onrender.com/api-docs
 
-Le projet démontre la maîtrise :
-
-* du frontend React avec TypeScript,
-* du backend Express avec TypeScript,
-* de la base de données relationnelle avec Prisma et MySQL,
-* de la communication temps réel avec Socket.IO,
-* de la gestion des fichiers multimédias,
-* de l’authentification sécurisée,
-* et de l’intégration d’API externes.
-
+Mchichat a permis de mettre en pratique l'ensemble des notions abordées durant le module : REST, JSON, sécurité, architecture web moderne, APIs externes et documentation de services.
