@@ -17,17 +17,37 @@ export function initSocket(server: HttpServer) {
     });
 
     io.on("connection", (socket) => {
-        console.log(`Socket connecté : ${socket.id}`);
+        console.log("Socket connecté :", socket.id);
+
+        socket.on("join_user", (userId: string) => {
+            socket.join(`user:${userId}`);
+        });
+
+        socket.on("join_salon", (salonId: string) => {
+            socket.join(`salon:${salonId}`);
+        });
+
+        socket.on("leave_salon", (salonId: string) => {
+            socket.leave(`salon:${salonId}`);
+        });
+
+        socket.on("join_private_conversation", (conversationId: string) => {
+            socket.join(`private:${conversationId}`);
+        });
+
+        socket.on("leave_private_conversation", (conversationId: string) => {
+            socket.leave(`private:${conversationId}`);
+        });
 
         socket.on("disconnect", () => {
-            console.log(`Socket déconnecté : ${socket.id}`);
+            console.log("Socket déconnecté :", socket.id);
         });
     });
 
     return io;
 }
 
-export function getIo() {
+export function getIO() {
     if (!io) {
         throw new Error("Socket.IO non initialisé");
     }
