@@ -1,12 +1,11 @@
 import {
     useCallback,
-    useEffect,
     useMemo,
     useState,
     type ReactNode,
 } from "react";
 import { api, setAccessToken } from "../../lib/api";
-import { clearLegacyToken } from "../../lib/storage";
+import { clearLegacyToken, getSessionAccessToken } from "../../lib/storage";
 import { AuthContext } from "./auth.context.ts";
 import type { User } from "./auth.types";
 
@@ -15,21 +14,11 @@ type AuthProviderProps = {
 };
 
 export function AuthProvider({ children }: AuthProviderProps) {
-    const [token, setTokenState] = useState<string | null>(null);
+    const [token, setTokenState] = useState<string | null>(() =>
+        getSessionAccessToken()
+    );
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-
-    const applyAuth = useCallback(
-        (newToken: string | null, providedUser?: User | null) => {
-            setAccessToken(newToken);
-            setTokenState(newToken);
-
-            if (providedUser !== undefined) {
-                setUser(providedUser);
-            }
-        },
-        []
-    );
 
     const refreshMe = useCallback(async () => {
         try {
@@ -42,13 +31,46 @@ export function AuthProvider({ children }: AuthProviderProps) {
             const meResponse = await api.get("/auth/me");
             setUser(meResponse.data.user);
         } catch {
-            setAccessToken(null);
-            setTokenState(null);
-            setUser(null);
+            try {
+                const meResponse = await api.get("/auth/me");
+                setUser(meResponse.data.user);
+            } catch {
+                setAccessToken(null);
+                setTokenState(null);
+                setUser(null);
+            }
         } finally {
             setIsLoading(false);
         }
     }, []);
+
+    useState(() => {
+        clearLegacyToken();
+
+        const sessionToken = getSessionAccessToken();
+
+        if (sessionToken) {
+            setAccessToken(sessionToken);
+        }
+
+        queueMicrotask(() => {
+            void refreshMe();
+        });
+
+        return null;
+    });
+
+    const applyAuth = useCallback(
+        (newToken: string | null, providedUser?: User | null) => {
+            setAccessToken(newToken);
+            setTokenState(newToken);
+
+            if (providedUser !== undefined) {
+                setUser(providedUser);
+            }
+        },
+        []
+    );
 
     const login = useCallback(
         async (newToken: string, providedUser?: User | null) => {
@@ -75,11 +97,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setUser(null);
         }
     }, []);
-
-    useEffect(() => {
-        clearLegacyToken();
-        void refreshMe();
-    }, [refreshMe]);
 
     const value = useMemo(
         () => ({
