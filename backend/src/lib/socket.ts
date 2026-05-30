@@ -1,48 +1,33 @@
 import { Server } from "socket.io";
 import type { Server as HttpServer } from "http";
+import { env } from "../config/env";
 
 let io: Server;
 
 export function initSocket(server: HttpServer) {
+    const allowedOrigins = env.CORS_ORIGIN.split(",").map((origin) =>
+        origin.trim()
+    );
+
     io = new Server(server, {
         cors: {
-            origin: process.env.CORS_ORIGIN,
+            origin: allowedOrigins,
             credentials: true,
         },
     });
 
     io.on("connection", (socket) => {
-        console.log("Socket connecté :", socket.id);
-
-        socket.on("join_user", (userId: string) => {
-            socket.join(`user:${userId}`);
-        });
-
-        socket.on("join_salon", (salonId: string) => {
-            socket.join(`salon:${salonId}`);
-        });
-
-        socket.on("leave_salon", (salonId: string) => {
-            socket.leave(`salon:${salonId}`);
-        });
-
-        socket.on("join_private_conversation", (conversationId: string) => {
-            socket.join(`private:${conversationId}`);
-        });
-
-        socket.on("leave_private_conversation", (conversationId: string) => {
-            socket.leave(`private:${conversationId}`);
-        });
+        console.log(`Socket connecté : ${socket.id}`);
 
         socket.on("disconnect", () => {
-            console.log("Socket déconnecté :", socket.id);
+            console.log(`Socket déconnecté : ${socket.id}`);
         });
     });
 
     return io;
 }
 
-export function getIO() {
+export function getIo() {
     if (!io) {
         throw new Error("Socket.IO non initialisé");
     }
