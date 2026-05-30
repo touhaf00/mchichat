@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
-import rateLimit from "express-rate-limit";
 import path from "path";
 import { env } from "./config/env";
 import { router } from "./routes";
@@ -30,13 +29,6 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
-
-app.use(
-    rateLimit({
-        windowMs: 15 * 60 * 1000,
-        max: 200,
-    })
-);
 
 app.use(
     "/uploads",
