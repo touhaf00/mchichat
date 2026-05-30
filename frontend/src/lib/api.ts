@@ -31,38 +31,3 @@ api.interceptors.request.use((config) => {
 
     return config;
 });
-
-api.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-        const originalRequest = error.config;
-
-        if (
-            error.response?.status === 401 &&
-            originalRequest &&
-            !originalRequest._retry &&
-            !originalRequest.url?.includes("/auth/login") &&
-            !originalRequest.url?.includes("/auth/register") &&
-            !originalRequest.url?.includes("/auth/refresh") &&
-            !originalRequest.url?.includes("/auth/logout")
-        ) {
-            originalRequest._retry = true;
-
-            try {
-                const response = await api.post("/auth/refresh");
-                const newAccessToken = response.data.accessToken;
-
-                setAccessToken(newAccessToken);
-
-                originalRequest.headers.Authorization =
-                    `Bearer ${newAccessToken}`;
-
-                return api(originalRequest);
-            } catch {
-                setAccessToken(null);
-            }
-        }
-
-        return Promise.reject(error);
-    }
-);

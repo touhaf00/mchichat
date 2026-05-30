@@ -22,23 +22,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const refreshMe = useCallback(async () => {
         try {
-            const refreshResponse = await api.post("/auth/refresh");
-            const refreshedToken = refreshResponse.data.accessToken as string;
+            const sessionToken = getSessionAccessToken();
 
-            setAccessToken(refreshedToken);
-            setTokenState(refreshedToken);
+            if (!sessionToken) {
+                setUser(null);
+                return;
+            }
+
+            setAccessToken(sessionToken);
+            setTokenState(sessionToken);
 
             const meResponse = await api.get("/auth/me");
             setUser(meResponse.data.user);
         } catch {
-            try {
-                const meResponse = await api.get("/auth/me");
-                setUser(meResponse.data.user);
-            } catch {
-                setAccessToken(null);
-                setTokenState(null);
-                setUser(null);
-            }
+            setAccessToken(null);
+            setTokenState(null);
+            setUser(null);
         } finally {
             setIsLoading(false);
         }
