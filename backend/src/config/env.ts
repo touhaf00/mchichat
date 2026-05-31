@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 
+
 dotenv.config();
 
 function getEnv(name: string, fallback?: string): string {
@@ -23,4 +24,7 @@ export const env = {
     CORS_ORIGIN: getEnv("CORS_ORIGIN"),
     GIPHY_API_KEY: getEnv("GIPHY_API_KEY"),
     NEWSDATA_API_KEY: getEnv("NEWSDATA_API_KEY"),
+    CLOUDINARY_CLOUD_NAME: getEnv("CLOUDINARY_CLOUD_NAME"),
+    CLOUDINARY_API_KEY: getEnv("CLOUDINARY_API_KEY"),
+    CLOUDINARY_API_SECRET: getEnv("CLOUDINARY_API_SECRET"),
 };

@@ -10,8 +10,10 @@ import {
     updatePost,
 } from "./post.service";
 import { getIO } from "../../lib/socket";
+import {uploadToCloudinary} from "../../utils/uploadToCloudinary";
 
-function getUploadedPostMedia(file?: Express.Multer.File) {
+
+async function getUploadedPostMedia(file?: Express.Multer.File) {
     if (!file) {
         return {
             mediaUrl: null,
@@ -19,12 +21,13 @@ function getUploadedPostMedia(file?: Express.Multer.File) {
         };
     }
 
+    const uploaded = await uploadToCloudinary(file, "mchichat/posts");
+
     return {
-        mediaUrl: `/uploads/posts/${file.filename}`,
-        mediaType: file.mimetype,
+        mediaUrl: uploaded.url,
+        mediaType: uploaded.type,
     };
 }
-
 export async function getPostsHandler(
     req: Request,
     res: Response,
@@ -60,7 +63,7 @@ export async function createPostHandler(
         const content =
             typeof req.body.content === "string" ? req.body.content.trim() : "";
 
-        const media = getUploadedPostMedia(req.file);
+        const media = await getUploadedPostMedia(req.file);
 
         if (!content && !media.mediaUrl) {
             return res.status(400).json({
@@ -104,7 +107,7 @@ export async function updatePostHandler(
                     : undefined,
         });
 
-        const media = req.file ? getUploadedPostMedia(req.file) : undefined;
+        const media = req.file ? await getUploadedPostMedia(req.file) : undefined;
 
         const post = await updatePost(id, userId, {
             content: data.content ?? "",

@@ -15,74 +15,14 @@ import {
 import { getIO } from "../../lib/socket";
 import fs from "fs";
 import { convertAudioToMp3 } from "../../utils/convertAudio";
+import {uploadToCloudinary} from "../../utils/uploadToCloudinary";
+type UploadedAttachment = {
+    attachmentUrl: string | null;
+    attachmentType: string | null;
+    attachmentName: string | null;
+    attachmentSize: number | null;
+};
 
-function getUploadedAttachment(file?: Express.Multer.File) {
-    if (!file) {
-        return {
-            attachmentUrl: null,
-            attachmentType: null,
-            attachmentName: null,
-            attachmentSize: null,
-        };
-    }
-
-    let attachmentType = file.mimetype || "";
-    const lowerName = file.originalname.toLowerCase();
-
-    if (
-        lowerName.endsWith(".webm") ||
-        attachmentType.includes("webm")
-    ) {
-        attachmentType = "audio/webm";
-    }
-
-    else if (
-        lowerName.endsWith(".m4a") ||
-        lowerName.endsWith(".mp4") ||
-        attachmentType.includes("mp4")
-    ) {
-        attachmentType = "audio/mp4";
-    }
-
-    else if (
-        lowerName.endsWith(".aac") ||
-        attachmentType.includes("aac")
-    ) {
-        attachmentType = "audio/aac";
-    }
-
-    else if (
-        lowerName.endsWith(".ogg") ||
-        attachmentType.includes("ogg")
-    ) {
-        attachmentType = "audio/ogg";
-    }
-
-    else if (
-        lowerName.endsWith(".mp3") ||
-        attachmentType.includes("mpeg")
-    ) {
-        attachmentType = "audio/mpeg";
-    }
-
-    if (
-        attachmentType === "application/octet-stream" ||
-        !attachmentType
-    ) {
-        if (lowerName.endsWith(".webm")) attachmentType = "audio/webm";
-        if (lowerName.endsWith(".ogg")) attachmentType = "audio/ogg";
-        if (lowerName.endsWith(".mp3")) attachmentType = "audio/mpeg";
-        if (lowerName.endsWith(".wav")) attachmentType = "audio/wav";
-        if (lowerName.endsWith(".m4a")) attachmentType = "audio/mp4";
-    }
-
-    return {
-        attachmentUrl: `/uploads/messages/${file.filename}`,
-        attachmentType,
-        attachmentName: file.originalname,
-        attachmentSize: file.size,
-    };
-}
 
 export async function getPrivateConversationsHandler(
     req: Request,
@@ -200,7 +140,26 @@ export async function createPrivateMessageHandler(
             };
         }
 
-        const attachment = getUploadedAttachment(uploadedFile);
+        let attachment: UploadedAttachment = {
+            attachmentUrl: null,
+            attachmentType: null,
+            attachmentName: null,
+            attachmentSize: null,
+        };
+
+        if (uploadedFile) {
+            const uploaded = await uploadToCloudinary(
+                uploadedFile,
+                "mchichat/messages"
+            );
+
+            attachment = {
+                attachmentUrl: uploaded.url,
+                attachmentType: uploaded.type,
+                attachmentName: uploaded.name,
+                attachmentSize: uploaded.size,
+            };
+        }
 
         const data = createPrivateMessageSchema.parse({
             content,

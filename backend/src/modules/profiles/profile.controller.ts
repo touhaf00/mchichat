@@ -1,9 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
 import { getStringParam } from "../../utils/params";
-import { getProfileByUsername, updateMyProfile, deleteMyAccount } from "./profile.service";
+import { deleteMyAccount, getProfileByUsername, updateMyProfile,
+} from "./profile.service";
 import { updateProfileSchema } from "./profile.schema";
+import { uploadToCloudinary } from "../../utils/uploadToCloudinary";
 
-function getProfileFileUrls(files: Request["files"]) {
+async function getProfileFileUrls(files: Request["files"]) {
     const result: {
         avatarUrl?: string | null;
         bannerUrl?: string | null;
@@ -17,11 +19,21 @@ function getProfileFileUrls(files: Request["files"]) {
     const banner = files.banner?.[0];
 
     if (avatar) {
-        result.avatarUrl = `/uploads/profiles/${avatar.filename}`;
+        const uploaded = await uploadToCloudinary(
+            avatar,
+            "mchichat/profiles/avatars"
+        );
+
+        result.avatarUrl = uploaded.url;
     }
 
     if (banner) {
-        result.bannerUrl = `/uploads/profiles/${banner.filename}`;
+        const uploaded = await uploadToCloudinary(
+            banner,
+            "mchichat/profiles/banners"
+        );
+
+        result.bannerUrl = uploaded.url;
     }
 
     return result;
@@ -65,7 +77,7 @@ export async function updateMyProfileHandler(
             bio: req.body.bio,
         });
 
-        const files = getProfileFileUrls(req.files);
+        const files = await getProfileFileUrls(req.files);
         const user = await updateMyProfile(userId, data, files);
 
         return res.status(200).json({
@@ -86,7 +98,9 @@ export async function deleteMyAccountHandler(
         const userId = req.user?.userId;
 
         if (!userId) {
-            return res.status(401).json({ message: "Non autorisé" });
+            return res.status(401).json({
+                message: "Non autorisé",
+            });
         }
 
         const result = await deleteMyAccount(userId);

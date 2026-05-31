@@ -39,6 +39,7 @@ Le projet s'inspire des fonctionnalités présentes dans plusieurs plateformes m
 ## Fonctionnalités principales
 
 ### Administration
+Une interface d'administration permet la gestion des utilisateurs, des rôles et des statistiques de la plateforme.
 
 * Tableau de bord administrateur
 * Gestion des utilisateurs
@@ -161,6 +162,7 @@ TailwindCSS permet de construire rapidement une interface moderne tout en conser
 * Bcrypt
 * Cookie Parser
 * CORS
+* Cloudinary
 
 ### Pourquoi ce choix ?
 
@@ -323,6 +325,12 @@ CORS_ORIGIN="http://localhost:5173"
 GIPHY_API_KEY="ta_cle_API"
 
 NEWSDATA_API_KEY="ta_cle_API"
+
+CLOUDINARY_CLOUD_NAME="ton_cloud_name"
+
+CLOUDINARY_API_KEY="ta_cle_cloudinary"
+
+CLOUDINARY_API_SECRET="ton_secret_cloudinary"
 ```
 
 Créer les bases :
@@ -455,6 +463,9 @@ Le projet implémente plusieurs mécanismes de sécurité :
 * Limitation de la taille des fichiers uploadés
 * Protection des routes sensibles par middleware
 * Protection contre les accès non autorisés aux ressources administrateur
+* Cookies HTTP Only
+* Validation des fichiers uploadés
+* Stockage externe des médias via Cloudinary
 
 ## Temps réel
 
@@ -627,6 +638,10 @@ https://mchichat.onrender.com
 
 Aiven MySQL
 
+### Stockage des médias
+
+* Cloudinary
+
 ## Documentation API
 
 Swagger
@@ -660,7 +675,6 @@ Mchichat a permis de mettre en pratique l'ensemble des notions abordées durant 
 
 Plusieurs évolutions sont envisageables :
 
-* stockage des médias sur un service cloud dédié (Cloudinary, AWS S3) ;
 * mise en place d'une modération avancée ;
 * ajout des appels audio et vidéo ;
 * création d'applications mobiles Android et iOS ;
